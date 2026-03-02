@@ -202,8 +202,8 @@ function renderLanding() {
       </div>
       <div class="grid md:grid-cols-3 gap-6">
         ${[
-          { name:'Priya M.', role:'Software Engineer', text:'Finally, an astrology platform that doesn\\'t look like it was built in 2005. The dashboard is stunning and the insights are remarkably accurate.' },
-          { name:'Arjun K.', role:'Entrepreneur', text:'The Dasha timeline and career insights helped me understand my professional cycles. It\\'s like having a cosmic advisor in your pocket.' },
+          { name:'Priya M.', role:'Software Engineer', text:'Finally, an astrology platform that doesn\u2019t look like it was built in 2005. The dashboard is stunning and the insights are remarkably accurate.' },
+          { name:'Arjun K.', role:'Entrepreneur', text:'The Dasha timeline and career insights helped me understand my professional cycles. It\u2019s like having a cosmic advisor in your pocket.' },
           { name:'Meera S.', role:'Yoga Teacher', text:'I appreciate how the dosha analysis is presented without fear-mongering. Modern, respectful, and deeply knowledgeable.' }
         ].map(t => `
           <div class="glass-card p-8">
