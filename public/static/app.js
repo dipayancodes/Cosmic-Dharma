@@ -1,6 +1,6 @@
 // ============================================================
-// Cosmic Dharma — Premium Vedic Astrology SPA v3.0
-// Complete UI overhaul: charts, tooltips, themes, PDF, perf
+// Cosmic Dharma — Premium Vedic Astrology SPA v4.0
+// 3-letter planet abbreviations, sign numbers, precise calculations
 // ============================================================
 
 (function() {
@@ -24,6 +24,7 @@ const PLANET_COLORS = {
   Jupiter: '#f59e0b', Venus: '#ec4899', Saturn: '#6366f1', Rahu: '#8b5cf6', Ketu: '#a78bfa'
 };
 const PLANET_GLYPHS = { Sun:'\u2609', Moon:'\u263D', Mars:'\u2642', Mercury:'\u263F', Jupiter:'\u2643', Venus:'\u2640', Saturn:'\u2644', Rahu:'\u260A', Ketu:'\u260B' };
+const PLANET_ABBR = { Sun:'SUN', Moon:'MON', Mars:'MAR', Mercury:'MER', Jupiter:'JUP', Venus:'VEN', Saturn:'SAT', Rahu:'RAH', Ketu:'KET' };
 
 // === Router ===
 function navigate(page, data) {
@@ -469,8 +470,8 @@ function renderOverview() {
             <tbody>
               ${c.planets.map(p => `
                 <tr class="border-b border-purple-500/5 hover:bg-purple-500/5 transition-colors cursor-pointer" onclick="window.__selectPlanet('${p.name}')">
-                  <td class="py-3 px-3"><span class="planet-badge ${p.retrograde && p.name !== 'Rahu' && p.name !== 'Ketu' ? 'retro' : ''} ${p.dignity==='Exalted'?'exalted':''} ${p.dignity==='Debilitated'?'debilitated':''}"><span style="color:${PLANET_COLORS[p.name]}">${p.symbol}</span> ${p.name} ${p.retrograde && !['Rahu','Ketu'].includes(p.name) ? '<span class="text-red-400 text-xs">(R)</span>' : ''}</span></td>
-                  <td class="py-3 px-3 text-white/70">${SIGN_SYMBOLS[p.signIndex]} ${p.sign}</td>
+                  <td class="py-3 px-3"><span class="planet-badge ${p.retrograde && p.name !== 'Rahu' && p.name !== 'Ketu' ? 'retro' : ''} ${p.dignity==='Exalted'?'exalted':''} ${p.dignity==='Debilitated'?'debilitated':''}"><span style="color:${PLANET_COLORS[p.name]}" class="font-bold">${PLANET_ABBR[p.name]}</span> ${p.retrograde && !['Rahu','Ketu'].includes(p.name) ? '<span class="text-red-400 text-xs">(R)</span>' : ''}</span></td>
+                  <td class="py-3 px-3 text-white/70">${p.signIndex + 1} - ${p.sign}</td>
                   <td class="py-3 px-3 font-mono text-white/60">${p.degreeInSign.toFixed(2)}\u00b0</td>
                   <td class="py-3 px-3 text-white/50 hidden sm:table-cell">${p.nakshatra} (P${p.nakshatraPada})</td>
                   <td class="py-3 px-3"><span class="text-purple-300">H${p.house}</span></td>
@@ -559,14 +560,14 @@ function renderPlanetDetail(p) {
   return `
   <div class="glass-card p-6 animate-slide-right">
     <div class="flex items-center gap-4 mb-5">
-      <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-3xl" style="background:${PLANET_COLORS[p.name]}15;box-shadow:0 0 25px ${PLANET_COLORS[p.name]}10">${p.symbol}</div>
-      <div><h3 class="font-display text-xl font-bold">${p.name}</h3><div class="text-sm text-white/50">${p.sign} \u00b7 ${p.nakshatra}</div></div>
+      <div class="w-14 h-14 rounded-2xl flex items-center justify-center text-xl font-bold" style="background:${PLANET_COLORS[p.name]}15;box-shadow:0 0 25px ${PLANET_COLORS[p.name]}10;color:${PLANET_COLORS[p.name]}">${PLANET_ABBR[p.name]}</div>
+      <div><h3 class="font-display text-xl font-bold">${p.name}</h3><div class="text-sm text-white/50">${p.signIndex + 1} - ${p.sign} \u00b7 ${p.nakshatra}</div></div>
     </div>
     <div class="space-y-2.5 text-sm">
       ${[
         ['Sidereal Longitude', `${p.siderealLongitude.toFixed(4)}\u00b0`],
         ['Degree in Sign', `${p.degreeInSign.toFixed(2)}\u00b0`],
-        ['Sign (Rashi)', `${SIGN_SYMBOLS[p.signIndex]} ${p.sign} (${p.signSanskrit})`],
+        ['Sign (Rashi)', `${p.signIndex + 1} - ${p.sign} (${p.signSanskrit})`],
         ['Nakshatra', `${p.nakshatra} (Pada ${p.nakshatraPada})`],
         ['Nakshatra Lord', p.nakshatraLord],
         ['Nakshatra Deity', p.nakshatraDeity],
@@ -615,19 +616,19 @@ function renderNorthChart(planets, ascSignIdx) {
   for (let h = 1; h <= 12; h++) {
     const pos = hp[h - 1];
     const signIdx = (ascSignIdx + h - 1) % 12;
-    svg += `<text x="${pos.x}" y="${pos.y - 15}" text-anchor="middle" fill="rgba(255,255,255,0.2)" font-size="9" font-weight="400">${SIGN_SYMBOLS[signIdx]}${signIdx + 1}</text>`;
+    svg += `<text x="${pos.x}" y="${pos.y - 15}" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="10" font-weight="500">${signIdx + 1}</text>`;
     if (h === 1) svg += `<text x="${pos.x}" y="${pos.y - 28}" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="700">ASC</text>`;
     
-    // Planets — spread vertically to avoid overlap
+    // Planets — use 3-letter abbreviations, spread vertically
     const housePlanets = planetsByHouse[h] || [];
     const total = housePlanets.length;
     const startY = pos.y - (total - 1) * 8;
     housePlanets.forEach((p, idx) => {
       const yPos = startY + idx * 16;
       const color = PLANET_COLORS[p.name];
-      const retMark = (p.retrograde && !['Rahu','Ketu'].includes(p.name)) ? '\u1D3F' : '';
-      svg += `<text x="${pos.x}" y="${yPos}" text-anchor="middle" fill="${color}" font-size="12" font-weight="600" class="planet-in-chart" data-planet="${p.name}" style="cursor:pointer">${p.symbol}${retMark}</text>`;
-      // Degree label below planet
+      const abbr = PLANET_ABBR[p.name] || p.name.substring(0, 3).toUpperCase();
+      const retMark = (p.retrograde && !['Rahu','Ketu'].includes(p.name)) ? '(R)' : '';
+      svg += `<text x="${pos.x}" y="${yPos}" text-anchor="middle" fill="${color}" font-size="10" font-weight="700" class="planet-in-chart" data-planet="${p.name}" style="cursor:pointer;letter-spacing:0.5px">${abbr}${retMark}</text>`;
       svg += `<text x="${pos.x}" y="${yPos + 10}" text-anchor="middle" fill="rgba(255,255,255,0.18)" font-size="7">${p.degreeInSign.toFixed(0)}\u00b0</text>`;
     });
   }
@@ -651,12 +652,13 @@ function renderSouthChart(planets, ascSignIdx) {
     const isAsc = signIdx === ascSignIdx;
     const signPlanets = planetsBySign[signIdx] || [];
     html += `<div class="si-cell ${isAsc ? 'border-purple-500/50' : ''}">`;
-    html += `<span class="sign-num">${SIGN_SYMBOLS[signIdx]}${signIdx+1}</span>`;
+    html += `<span class="sign-num">${signIdx+1}</span>`;
     if (isAsc) html += `<span class="absolute top-0.5 right-1 text-[8px] text-purple-400 font-bold">ASC</span>`;
     html += `<div class="flex flex-wrap justify-center gap-1">`;
     signPlanets.forEach(p => {
+      const abbr = PLANET_ABBR[p.name] || p.name.substring(0, 3).toUpperCase();
       const retMark = (p.retrograde && !['Rahu','Ketu'].includes(p.name)) ? '<sup class="text-red-400" style="font-size:6px">R</sup>' : '';
-      html += `<span class="text-xs font-semibold cursor-pointer hover:scale-125 transition-transform" style="color:${PLANET_COLORS[p.name]}" data-planet="${p.name}" title="${p.name} ${p.degreeInSign.toFixed(1)}\u00b0 ${p.sign}">${p.symbol}${retMark}</span>`;
+      html += `<span class="text-[9px] font-bold cursor-pointer hover:scale-125 transition-transform" style="color:${PLANET_COLORS[p.name]}" data-planet="${p.name}" title="${p.name} ${p.degreeInSign.toFixed(1)}\u00b0 ${p.sign}">${abbr}${retMark}</span>`;
     });
     html += `</div></div>`;
   }
@@ -697,7 +699,7 @@ function renderDivisionalTab() {
         <h3 class="font-display text-lg font-semibold mb-4">Positions in ${divCharts[currentDivisional]}</h3>
         <div class="space-y-2">${chartData.map(d => {
           const orig = c.planets.find(p => p.name === d.planet);
-          return `<div class="flex items-center justify-between p-2 rounded-lg hover:bg-purple-500/5 transition-colors cursor-pointer" onclick="window.__selectPlanet('${d.planet}')"><div class="flex items-center gap-3"><span style="color:${PLANET_COLORS[d.planet]}">${orig.symbol}</span><span class="text-sm">${d.planet}</span></div><div class="text-sm text-white/60">${SIGN_SYMBOLS[d.signIndex]} ${d.sign}</div></div>`;
+          return `<div class="flex items-center justify-between p-2 rounded-lg hover:bg-purple-500/5 transition-colors cursor-pointer" onclick="window.__selectPlanet('${d.planet}')"><div class="flex items-center gap-3"><span style="color:${PLANET_COLORS[d.planet]}" class="font-bold text-xs">${PLANET_ABBR[d.planet]}</span><span class="text-sm">${d.planet}</span></div><div class="text-sm text-white/60">${d.signIndex + 1} - ${d.sign}</div></div>`;
         }).join('')}</div>
         <div class="mt-6 p-4 rounded-xl bg-purple-500/5 border border-purple-500/10"><p class="text-xs text-white/40 leading-relaxed">${descriptions[currentDivisional]}</p></div>
       </div>
@@ -785,10 +787,10 @@ function renderDashaTab() {
         <div class="flex gap-1 h-10 rounded-xl overflow-hidden mb-4">
           ${dashas.map(d => {
             const widthPct = (d.years / 120 * 100);
-            return `<div class="h-full flex items-center justify-center text-xs font-bold transition-all hover:opacity-100 ${d.isCurrent?'opacity-100':'opacity-40'}" style="width:${Math.max(widthPct, 3)}%;background:${PLANET_COLORS[d.planet]}25;border:1px solid ${PLANET_COLORS[d.planet]}40;color:${PLANET_COLORS[d.planet]}" title="${d.planet}: ${d.startDate} to ${d.endDate}">${widthPct > 6 ? d.planet.substring(0, 3) : ''}</div>`;
+            return `<div class="h-full flex items-center justify-center text-xs font-bold transition-all hover:opacity-100 ${d.isCurrent?'opacity-100':'opacity-40'}" style="width:${Math.max(widthPct, 3)}%;background:${PLANET_COLORS[d.planet]}25;border:1px solid ${PLANET_COLORS[d.planet]}40;color:${PLANET_COLORS[d.planet]}" title="${d.planet}: ${d.startDate} to ${d.endDate}">${widthPct > 6 ? (PLANET_ABBR[d.planet] || d.planet.substring(0,3)) : ''}</div>`;
           }).join('')}
         </div>
-        <div class="flex flex-wrap gap-3 text-xs">${dashas.map(d => `<span class="flex items-center gap-1.5 ${d.isCurrent?'text-white':'text-white/30'}"><span class="w-2 h-2 rounded-full" style="background:${PLANET_COLORS[d.planet]}"></span>${d.planet} (${d.years}y)</span>`).join('')}</div>
+        <div class="flex flex-wrap gap-3 text-xs">${dashas.map(d => `<span class="flex items-center gap-1.5 ${d.isCurrent?'text-white':'text-white/30'}"><span class="w-2 h-2 rounded-full" style="background:${PLANET_COLORS[d.planet]}"></span>${PLANET_ABBR[d.planet]} (${d.years}y)</span>`).join('')}</div>
       </div>
     </div>
     <div class="glass-card p-6">
@@ -797,7 +799,7 @@ function renderDashaTab() {
         ${dashas.map(d => `
           <div class="dasha-row ${d.isCurrent?'current':''}" onclick="this.querySelector('.ad-content')?.classList.toggle('hidden')">
             <div class="flex items-center gap-4 flex-1 min-w-0">
-              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl flex-shrink-0" style="background:${PLANET_COLORS[d.planet]}12"><span style="color:${PLANET_COLORS[d.planet]}">${PLANET_GLYPHS[d.planet]}</span></div>
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style="background:${PLANET_COLORS[d.planet]}12;color:${PLANET_COLORS[d.planet]}">${PLANET_ABBR[d.planet]}</div>
               <div class="flex-1 min-w-0">
                 <div class="flex items-center gap-2"><span class="font-semibold text-sm">${d.planet} Mahadasha</span>${d.isCurrent?'<span class="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs font-medium">Active</span>':''}</div>
                 <div class="text-xs text-white/40 mt-0.5">${d.startDate} \u2192 ${d.endDate} \u00b7 ${d.years} years</div>
@@ -808,7 +810,7 @@ function renderDashaTab() {
               <div class="text-xs text-white/30 mb-2 font-medium">Antardasha Periods:</div>
               <div class="grid sm:grid-cols-2 gap-1">${d.antardasha.map(a => `
                 <div class="flex items-center justify-between px-3 py-2 rounded-lg ${a.isCurrent?'bg-cyan-500/10 border border-cyan-500/20':'bg-white/[0.02]'}">
-                  <div class="flex items-center gap-2"><span class="text-xs" style="color:${PLANET_COLORS[a.planet]}">${PLANET_GLYPHS[a.planet]}</span><span class="text-xs ${a.isCurrent?'text-cyan-400 font-medium':'text-white/50'}">${a.planet}</span>${a.isCurrent?'<span class="text-[10px] text-cyan-400">\u25CF</span>':''}</div>
+                  <div class="flex items-center gap-2"><span class="text-xs font-bold" style="color:${PLANET_COLORS[a.planet]}">${PLANET_ABBR[a.planet]}</span><span class="text-xs ${a.isCurrent?'text-cyan-400 font-medium':'text-white/50'}">${a.planet}</span>${a.isCurrent?'<span class="text-[10px] text-cyan-400">\u25CF</span>':''}</div>
                   <span class="text-[10px] text-white/30">${a.startDate} \u2192 ${a.endDate}</span>
                 </div>
               `).join('')}</div>
@@ -831,8 +833,8 @@ function renderTransitTab() {
         <div class="glass-card p-5 group">
           <div class="flex items-center justify-between mb-3">
             <div class="flex items-center gap-3">
-              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xl" style="background:${PLANET_COLORS[t.planet]}12"><span style="color:${PLANET_COLORS[t.planet]}">${PLANET_GLYPHS[t.planet]}</span></div>
-              <div><div class="font-semibold text-sm">${t.planet}</div><div class="text-xs text-white/40">${t.degree.toFixed(1)}\u00b0 ${t.sign}</div></div>
+              <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold" style="background:${PLANET_COLORS[t.planet]}12;color:${PLANET_COLORS[t.planet]}">${PLANET_ABBR[t.planet]}</div>
+              <div><div class="font-semibold text-sm">${PLANET_ABBR[t.planet]} - ${t.planet}</div><div class="text-xs text-white/40">${t.degree.toFixed(1)}\u00b0 ${t.sign} (${t.signIndex + 1})</div></div>
             </div>
             ${t.retrograde && !['Rahu','Ketu'].includes(t.planet) ? '<span class="text-xs text-red-400 font-medium px-2 py-0.5 rounded bg-red-500/10">\u211E Retro</span>' : ''}
           </div>
@@ -970,7 +972,7 @@ function attachEvents() {
     const el = e.target.closest('[data-planet]');
     if (el && currentChart) {
       const p = currentChart.planets.find(x => x.name === el.dataset.planet);
-      if (p) showTooltip(e, `<strong>${p.name} ${p.symbol}</strong><br>${p.degreeInSign.toFixed(2)}\u00b0 ${p.sign}<br>${p.nakshatra} P${p.nakshatraPada}<br>House ${p.house} \u00b7 ${p.dignity}`);
+      if (p) showTooltip(e, `<strong>${PLANET_ABBR[p.name]} - ${p.name}</strong><br>${p.degreeInSign.toFixed(2)}\u00b0 ${p.sign} (${p.signIndex + 1})<br>${p.nakshatra} P${p.nakshatraPada}<br>House ${p.house} \u00b7 ${p.dignity}`);
     }
   });
   document.addEventListener('mouseout', (e) => {

@@ -1,7 +1,10 @@
 // ============================================================
-// Cosmic Dharma — Precision Vedic Astrology Engine v3.0
+// Cosmic Dharma — Precision Vedic Astrology Engine v4.0
 // Sidereal Zodiac · Lahiri Ayanamsha · Whole Sign Houses
-// Based on VSOP87 planetary theory & Meeus algorithms
+// Full Meeus Keplerian Method for Planets + VSOP87 Sun
+// Moon: Meeus ELP/MPP02 truncated
+// Reference: "Astronomical Algorithms" Jean Meeus, 2nd Ed.
+// Swiss Ephemeris documentation for Lahiri ayanamsha
 // ============================================================
 
 // --- Constants ---
@@ -20,7 +23,13 @@ export const NAKSHATRA_LORDS = ['Ketu','Venus','Sun','Moon','Mars','Rahu','Jupit
 export const NAKSHATRA_DEITIES = ['Ashwini Kumaras','Yama','Agni','Brahma','Soma','Rudra','Aditi','Brihaspati','Naga','Pitris','Bhaga','Aryaman','Savitar','Tvashtar','Vayu','Indragni','Mitra','Indra','Nirriti','Apas','Vishvedevas','Vishnu','Vasus','Varuna','Ajaikapada','Ahirbudhnya','Pushan'] as const;
 
 export const PLANET_NAMES = ['Sun','Moon','Mars','Mercury','Jupiter','Venus','Saturn','Rahu','Ketu'] as const;
-export const PLANET_SYMBOLS = ['☉','☽','♂','☿','♃','♀','♄','☊','☋'] as const;
+export const PLANET_SYMBOLS = ['\u2609','\u263D','\u2642','\u263F','\u2643','\u2640','\u2644','\u260A','\u260B'] as const;
+
+// 3-letter abbreviations for chart display
+export const PLANET_ABBR: Record<string, string> = {
+  Sun:'SUN', Moon:'MON', Mars:'MAR', Mercury:'MER', Jupiter:'JUP',
+  Venus:'VEN', Saturn:'SAT', Rahu:'RAH', Ketu:'KET'
+};
 
 export const DASHA_YEARS: Record<string, number> = { Ketu:7, Venus:20, Sun:6, Moon:10, Mars:7, Rahu:18, Jupiter:16, Saturn:19, Mercury:17 };
 export const DASHA_ORDER = ['Ketu','Venus','Sun','Moon','Mars','Rahu','Jupiter','Saturn','Mercury'] as const;
@@ -67,10 +76,12 @@ function norm360(deg: number): number {
 
 function sinD(deg: number): number { return Math.sin(deg * DEG); }
 function cosD(deg: number): number { return Math.cos(deg * DEG); }
+function tanD(deg: number): number { return Math.tan(deg * DEG); }
 function atan2D(y: number, x: number): number { return Math.atan2(y, x) * RAD; }
+function asinD(x: number): number { return Math.asin(x) * RAD; }
 
 // ============================================================
-// JULIAN DAY — Meeus algorithm, handles all dates correctly
+// JULIAN DAY — Meeus algorithm (Ch. 7), handles all dates correctly
 // ============================================================
 export function dateToJD(year: number, month: number, day: number, hour: number = 0): number {
   let y = year, m = month;
@@ -99,51 +110,50 @@ export function jdToDate(jd: number): string {
 }
 
 // ============================================================
-// LAHIRI AYANAMSHA — Official IAU-based Lahiri calculation
-// Reference: Indian Astronomical Ephemeris standard
-// Precession rate: ~50.2888"/year with secular variation
+// LAHIRI AYANAMSHA — Per Swiss Ephemeris / IAE standard
+// Reference: Swiss Ephemeris doc section 2.8.5
+// Lahiri defined: 23°15'00.658" on 21 March 1956, 0:00 TDT
+// At J2000.0: 23°51'25.53" = 23.857092°
+// Precession: IAU 1976 (Lieske) general precession:
+//   PN = 5029.0966" * T + 1.11161" * T² - 0.000113" * T³
+// where T = Julian centuries from J2000.0
 // ============================================================
 export function getLahiriAyanamsha(jd: number): number {
-  const T = (jd - 2451545.0) / 36525.0; // centuries from J2000.0
-  // Lahiri ayanamsha using the Newcomb precession with Lahiri reference
-  // At J2000.0 (2000 Jan 1.5): ayanamsha = 23.85610 degrees
-  const ayanamsha = 23.85610 +
-    (50.29027 * T +
-     0.02224 * T * T -
-     0.000018 * T * T * T) / 3600.0;
-  return ayanamsha;
+  const T = (jd - 2451545.0) / 36525.0;
+  // Lahiri ayanamsha at J2000.0 = 23°51'25.53" = 23.857092°
+  // Using IAU 1976 precession from J2000.0
+  const ayaJ2000 = 23.857092;  // 23°51'25.53"
+  const precessionArcsec = 5029.0966 * T + 1.11161 * T * T - 0.000113 * T * T * T;
+  return ayaJ2000 + precessionArcsec / 3600.0;
 }
 
 // ============================================================
-// OBLIQUITY OF THE ECLIPTIC — IAU 2006 formula (Lieske)
-// More accurate than the Laskar truncation used before
+// OBLIQUITY OF THE ECLIPTIC — IAU 2006 formula
 // ============================================================
 function getObliquity(T: number): number {
-  // Mean obliquity - IAU 2006 precession
   const eps0 = 84381.406 - 46.836769 * T - 0.0001831 * T * T
     + 0.00200340 * T * T * T - 0.000000576 * T * T * T * T
     - 0.0000000434 * T * T * T * T * T;
-  return eps0 / 3600.0; // convert arcseconds to degrees
+  return eps0 / 3600.0;
 }
 
 // ============================================================
-// NUTATION — IAU simplified (accurate to ~0.5")
+// NUTATION — IAU simplified (Meeus Ch. 22, ~0.5" accuracy)
 // ============================================================
 function getNutation(T: number): { deltaPsi: number; deltaEps: number } {
   const omega = 125.04452 - 1934.136261 * T + 0.0020708 * T * T;
   const Lsun = 280.4665 + 36000.7698 * T;
   const Lmoon = 218.3165 + 481267.8813 * T;
 
-  // Nutation in longitude (arcseconds)
   const deltaPsi = (-17.20 * sinD(omega) - 1.32 * sinD(2 * Lsun) - 0.23 * sinD(2 * Lmoon) + 0.21 * sinD(2 * omega)) / 3600.0;
-  // Nutation in obliquity (arcseconds)
   const deltaEps = (9.20 * cosD(omega) + 0.57 * cosD(2 * Lsun) + 0.10 * cosD(2 * Lmoon) - 0.09 * cosD(2 * omega)) / 3600.0;
 
   return { deltaPsi, deltaEps };
 }
 
 // ============================================================
-// SOLAR LONGITUDE — VSOP87 truncated (accurate to ~0.01 deg)
+// SOLAR LONGITUDE — Meeus Ch. 25 (VSOP87 truncated, ~0.01° accuracy)
+// Returns GEOCENTRIC APPARENT ecliptic longitude
 // ============================================================
 function getSunLongitude(jd: number): number {
   const T = (jd - 2451545.0) / 36525.0;
@@ -157,41 +167,49 @@ function getSunLongitude(jd: number): number {
           + 0.000289 * sinD(3 * M);
   // Sun's true longitude
   let sunLong = L0 + C;
-  // Aberration correction
+  // Apparent longitude (aberration + nutation)
   const omega = 125.04 - 1934.136 * T;
   sunLong -= 0.00569 + 0.00478 * sinD(omega);
   return norm360(sunLong);
 }
 
 // ============================================================
-// LUNAR LONGITUDE — Full Meeus algorithm (~0.01 deg accuracy)
+// LUNAR LONGITUDE — Full Meeus Ch. 47 (ELP truncated, ~0.01° accuracy)
+// Returns GEOCENTRIC ecliptic longitude
 // ============================================================
 function getMoonLongitude(jd: number): number {
   const T = (jd - 2451545.0) / 36525.0;
-  // Fundamental arguments
-  const Lp = norm360(218.3164477 + 481267.88123421 * T - 0.0015786 * T * T + T * T * T / 538841.0);
-  const D  = norm360(297.8501921 + 445267.1114034 * T - 0.0018819 * T * T + T * T * T / 545868.0);
-  const M  = norm360(357.5291092 + 35999.0502909 * T - 0.0001536 * T * T);
-  const Mp = norm360(134.9633964 + 477198.8675055 * T + 0.0087414 * T * T + T * T * T / 69699.0);
-  const F  = norm360(93.2720950 + 483202.0175233 * T - 0.0036539 * T * T);
+  const Lp = norm360(218.3164477 + 481267.88123421 * T - 0.0015786 * T * T + T * T * T / 538841.0 - T * T * T * T / 65194000.0);
+  const D  = norm360(297.8501921 + 445267.1114034 * T - 0.0018819 * T * T + T * T * T / 545868.0 - T * T * T * T / 113065000.0);
+  const M  = norm360(357.5291092 + 35999.0502909 * T - 0.0001536 * T * T + T * T * T / 24490000.0);
+  const Mp = norm360(134.9633964 + 477198.8675055 * T + 0.0087414 * T * T + T * T * T / 69699.0 - T * T * T * T / 14712000.0);
+  const F  = norm360(93.2720950 + 483202.0175233 * T - 0.0036539 * T * T - T * T * T / 3526000.0 + T * T * T * T / 863310000.0);
   const A1 = norm360(119.75 + 131.849 * T);
   const A2 = norm360(53.09 + 479264.290 * T);
   const A3 = norm360(313.45 + 481266.484 * T);
   const E = 1.0 - 0.002516 * T - 0.0000074 * T * T;
   const E2 = E * E;
   
-  // Summation of periodic terms for longitude (top 20 terms from Meeus Table 47.A)
-  let sumL = 0;
+  // Top 60 terms from Meeus Table 47.A
   const lTerms: [number, number, number, number, number][] = [
-    [0, 0, 1, 0, 6288774], [2, 0, -1, 0, 1274027], [2, 0, 0, 0, 658314],
-    [0, 0, 2, 0, 213618], [0, 1, 0, 0, -185116], [0, 0, 0, 2, -114332],
-    [2, 0, -2, 0, 58793], [2, -1, -1, 0, 57066], [2, 0, 1, 0, 53322],
-    [2, -1, 0, 0, 45758], [0, 1, -1, 0, -40923], [1, 0, 0, 0, -34720],
-    [0, 1, 1, 0, -30383], [2, 0, 0, -2, 15327], [0, 0, 1, 2, -12528],
-    [0, 0, 1, -2, 10980], [4, 0, -1, 0, 10675], [0, 0, 3, 0, 10034],
-    [4, 0, -2, 0, 8548], [2, 1, -1, 0, -7888]
+    [0,0,1,0,6288774],[2,0,-1,0,1274027],[2,0,0,0,658314],[0,0,2,0,213618],
+    [0,1,0,0,-185116],[0,0,0,2,-114332],[2,0,-2,0,58793],[2,-1,-1,0,57066],
+    [2,0,1,0,53322],[2,-1,0,0,45758],[0,1,-1,0,-40923],[1,0,0,0,-34720],
+    [0,1,1,0,-30383],[2,0,0,-2,15327],[0,0,1,2,-12528],[0,0,1,-2,10980],
+    [4,0,-1,0,10675],[0,0,3,0,10034],[4,0,-2,0,8548],[2,1,-1,0,-7888],
+    [2,1,0,0,-6766],[1,0,-1,0,-5163],[1,1,0,0,4987],[2,-1,1,0,4036],
+    [2,0,2,0,3994],[4,0,0,0,3861],[2,0,-3,0,3665],[0,1,-2,0,-2689],
+    [2,0,-1,2,-2602],[2,-1,-2,0,2390],[1,0,1,0,-2348],[2,-2,0,0,2236],
+    [0,1,2,0,-2120],[0,2,0,0,-2069],[2,-2,-1,0,2048],[2,0,1,-2,-1773],
+    [2,0,0,2,-1595],[4,-1,-1,0,1215],[0,0,2,2,-1110],[3,0,-1,0,-892],
+    [2,1,1,0,-810],[4,-1,-2,0,759],[0,2,-1,0,-713],[2,2,-1,0,-700],
+    [2,1,-2,0,691],[2,-1,0,-2,596],[4,0,1,0,549],[0,0,4,0,537],
+    [4,-1,0,0,520],[1,0,-2,0,-487],[2,1,0,-2,-399],[0,0,2,-2,-381],
+    [1,1,1,0,351],[3,0,-2,0,-340],[4,0,-3,0,330],[2,-1,2,0,327],
+    [0,2,1,0,-323],[1,1,-1,0,299],[2,0,3,0,294]
   ];
   
+  let sumL = 0;
   for (const [d, m, mp, f, coeff] of lTerms) {
     let eCorr = 1;
     if (Math.abs(m) === 1) eCorr = E;
@@ -199,107 +217,221 @@ function getMoonLongitude(jd: number): number {
     sumL += coeff * eCorr * sinD(d * D + m * M + mp * Mp + f * F);
   }
   
-  // Additional corrections (Meeus)
   sumL += 3958 * sinD(A1) + 1962 * sinD(Lp - F) + 318 * sinD(A2);
   
   return norm360(Lp + sumL / 1000000.0);
 }
 
 // ============================================================
-// PLANETARY LONGITUDES — Meeus VSOP87 truncated
+// PLANETARY LONGITUDES — Full Meeus Keplerian Method
+// Using orbital elements from Meeus "Astronomical Formulae for
+// Calculators" Table 1 (epoch T from 1900 Jan 0.5 ET)
+// Then converting heliocentric → geocentric ecliptic longitude
 // ============================================================
-function getPlanetLongitude(jd: number, planet: string): number {
-  const T = (jd - 2451545.0) / 36525.0;
+
+// Orbital elements: [L0, L1, L2, L3, a, e0, e1, e2, e3, i0, i1, i2, w0, w1, w2, w3, W0, W1, W2, W3]
+// T is Julian centuries from 1900 Jan 0.5 ET (JD 2415020.0)
+interface OrbitalElements {
+  L: number; a: number; e: number; i: number; w: number; W: number;
+}
+
+function getOrbitalElements(planet: string, T1900: number): OrbitalElements {
+  const T = T1900;
+  const T2 = T * T;
+  const T3 = T * T * T;
   
   switch(planet) {
-    case 'Sun': return getSunLongitude(jd);
-    case 'Moon': return getMoonLongitude(jd);
-    case 'Mercury': return getMercuryLongitude(T);
-    case 'Venus': return getVenusLongitude(T);
-    case 'Mars': return getMarsLongitude(T);
-    case 'Jupiter': return getJupiterLongitude(T);
-    case 'Saturn': return getSaturnLongitude(T);
-    default: return 0;
+    case 'Mercury': return {
+      L: norm360(178.179078 + 149474.07078 * T + 0.0003011 * T2),
+      a: 0.3870986,
+      e: 0.20561421 + 0.00002046 * T - 0.000000030 * T2,
+      i: 7.002881 + 0.0018608 * T - 0.0000183 * T2,
+      w: 28.753753 + 0.3702806 * T + 0.0001208 * T2,
+      W: 47.145944 + 1.1852083 * T + 0.0001739 * T2
+    };
+    case 'Venus': return {
+      L: norm360(342.767053 + 58519.21191 * T + 0.0003097 * T2),
+      a: 0.7233316,
+      e: 0.00682069 - 0.00004774 * T + 0.000000091 * T2,
+      i: 3.393631 + 0.0010058 * T - 0.0000010 * T2,
+      w: 54.384186 + 0.5081861 * T - 0.0013864 * T2,
+      W: 75.779647 + 0.8998500 * T + 0.0004100 * T2
+    };
+    case 'Earth': return {
+      L: norm360(99.696678 + 36000.76892 * T + 0.0003025 * T2),
+      a: 1.0000002,
+      e: 0.01675104 - 0.0000418 * T - 0.000000126 * T2,
+      i: 0,
+      w: 101.220833 + 1.7191750 * T + 0.0004528 * T2 + 0.000000150 * T3,
+      W: 0
+    };
+    case 'Mars': return {
+      L: norm360(293.737334 + 19141.69551 * T + 0.0003107 * T2),
+      a: 1.5236883,
+      e: 0.09331290 + 0.000092064 * T - 0.000000077 * T2,
+      i: 1.850333 - 0.0006750 * T + 0.0000126 * T2,
+      w: 285.431761 + 1.0697667 * T + 0.0001313 * T2 + 0.00000414 * T3,
+      W: 48.786442 + 0.7709917 * T - 0.0000014 * T2 - 0.00000533 * T3
+    };
+    case 'Jupiter': return {
+      L: norm360(238.049257 + 3036.301986 * T + 0.0003347 * T2 - 0.00000165 * T3),
+      a: 5.202561,
+      e: 0.04833475 + 0.000164180 * T - 0.0000004676 * T2 - 0.0000000017 * T3,
+      i: 1.308736 - 0.0056961 * T + 0.0000039 * T2,
+      w: 273.277558 + 0.5594317 * T + 0.00070405 * T2 + 0.00000508 * T3,
+      W: 99.443414 + 1.0105300 * T + 0.00035222 * T2 - 0.00000851 * T3
+    };
+    case 'Saturn': return {
+      L: norm360(266.564377 + 1223.509884 * T + 0.0003245 * T2 - 0.0000058 * T3),
+      a: 9.554747,
+      e: 0.05589232 - 0.00034550 * T - 0.000000728 * T2 + 0.00000000074 * T3,
+      i: 2.492519 - 0.0039189 * T - 0.00001549 * T2 + 0.00000004 * T3,
+      w: 338.307800 + 1.0852207 * T + 0.00097854 * T2 + 0.00000992 * T3,
+      W: 112.790414 + 0.8731951 * T - 0.00015218 * T2 - 0.00000531 * T3
+    };
+    default:
+      return { L:0, a:1, e:0, i:0, w:0, W:0 };
   }
 }
 
-function getMercuryLongitude(T: number): number {
-  const L = norm360(252.250906 + 149474.0722491 * T + 0.00030350 * T * T);
-  const M = norm360(174.7947006 + 149472.5158305 * T + 0.00032826 * T * T);
-  const F = norm360(L - norm360(48.3309 + 1.1861883 * T));
-  // Equation of center + perturbations
-  let v = L;
-  v += (23.4400 * sinD(M) + 2.9818 * sinD(2*M) + 0.5255 * sinD(3*M)) 
-     * (1.0 - 0.0048 * T);
-  // Sun perturbation
-  const Msun = norm360(357.5291 + 35999.0503 * T);
-  v += 0.2763 * sinD(2*F) + 0.0693 * sinD(Msun - M);
-  return norm360(v);
+// Solve Kepler's equation M = E - e*sin(E) by iteration
+function solveKepler(M_deg: number, e: number): number {
+  const M_rad = M_deg * DEG;
+  let E = M_rad;
+  for (let iter = 0; iter < 30; iter++) {
+    const dE = (M_rad - (E - e * Math.sin(E))) / (1 - e * Math.cos(E));
+    E += dE;
+    if (Math.abs(dE) < 1e-12) break;
+  }
+  return E * RAD; // return in degrees
 }
 
-function getVenusLongitude(T: number): number {
-  const L = norm360(181.979801 + 58519.2130302 * T + 0.00031060 * T * T);
-  const M = norm360(50.416130 + 58517.8038682 * T + 0.00012960 * T * T);
-  let v = L;
-  v += (0.7758 * sinD(M) + 0.0033 * sinD(2*M))
-     * (1.0 - 0.0050 * T);
-  // Perturbation by Jupiter
-  const Mjup = norm360(20.020 + 3034.696 * T);
-  v += 0.0761 * sinD(2*M - 2*Mjup) + 0.0540 * sinD(3*M - 3*Mjup);
-  return norm360(v);
+// Compute heliocentric ecliptic longitude and radius for a planet
+function heliocentricPosition(elem: OrbitalElements): { lon: number; r: number; lat: number } {
+  const p = elem.w + elem.W; // longitude of perihelion
+  const M = norm360(elem.L - p); // mean anomaly
+  const E = solveKepler(M, elem.e);
+  
+  // True anomaly
+  const tanHalfNu = Math.sqrt((1 + elem.e) / (1 - elem.e)) * Math.tan(E * DEG / 2);
+  let nu = 2 * Math.atan(tanHalfNu) * RAD;
+  
+  // Radius vector
+  const r = elem.a * (1 - elem.e * cosD(E));
+  
+  // Argument of latitude
+  const u = norm360(elem.L + nu - M - elem.W);
+  
+  // Ecliptic longitude
+  let lon: number;
+  if (elem.i < 0.001) {
+    // Near-zero inclination (like Earth reference)
+    lon = norm360(elem.W + u);
+  } else {
+    // Full formula with inclination
+    const sinLonMinusW = cosD(elem.i) * sinD(u);
+    const cosLonMinusW = cosD(u);
+    const lonMinusW = atan2D(sinLonMinusW, cosLonMinusW);
+    lon = norm360(lonMinusW + elem.W);
+  }
+  
+  // Ecliptic latitude
+  const lat = asinD(sinD(u) * sinD(elem.i));
+  
+  return { lon, r, lat };
 }
 
-function getMarsLongitude(T: number): number {
-  const L = norm360(355.433275 + 19141.6964471 * T + 0.00031052 * T * T);
-  const M = norm360(19.373018 + 19140.2993155 * T + 0.00000444 * T * T);
-  let v = L;
-  v += (10.6912 * sinD(M) + 0.6228 * sinD(2*M) + 0.0503 * sinD(3*M) + 0.0046 * sinD(4*M))
-     * (1.0 - 0.0005 * T);
-  // Jupiter perturbation
-  const Mjup = norm360(20.020 + 3034.696 * T);
-  v += 0.3222 * sinD(2*M - Mjup) - 0.0818 * sinD(M - Mjup) + 0.0586 * sinD(2*M - 2*Mjup);
-  return norm360(v);
+// Convert heliocentric to geocentric ecliptic longitude
+function helioToGeo(planetHel: { lon: number; r: number; lat: number },
+                     earthHel: { lon: number; r: number; lat: number }): number {
+  // Convert to rectangular heliocentric ecliptic
+  const xp = planetHel.r * cosD(planetHel.lat) * cosD(planetHel.lon);
+  const yp = planetHel.r * cosD(planetHel.lat) * sinD(planetHel.lon);
+  const zp = planetHel.r * sinD(planetHel.lat);
+  
+  const xe = earthHel.r * cosD(earthHel.lon); // Earth lat ~0
+  const ye = earthHel.r * sinD(earthHel.lon);
+  const ze = 0;
+  
+  // Geocentric rectangular
+  const xg = xp - xe;
+  const yg = yp - ye;
+  const zg = zp - ze;
+  
+  // Geocentric ecliptic longitude
+  return norm360(atan2D(yg, xg));
 }
 
-function getJupiterLongitude(T: number): number {
-  const L = norm360(34.351519 + 3036.3027748 * T + 0.00022330 * T * T);
-  const M = norm360(20.020199 + 3034.6961195 * T - 0.00008501 * T * T);
-  let v = L;
-  v += (5.5549 * sinD(M) + 0.1683 * sinD(2*M) + 0.0071 * sinD(3*M))
-     * (1.0 - 0.0003 * T);
-  // Saturn perturbation (Great Inequality)
-  const Msat = norm360(317.021 + 1222.114 * T);
-  const diff = M - Msat;
-  v += 0.3323 * sinD(2*diff) - 0.0541 * sinD(3*diff) - 0.1452 * sinD(diff);
-  return norm360(v);
+// Perturbation corrections for Jupiter and Saturn (Great Inequality)
+// Meeus "Astronomical Formulae for Calculators" Ch. 23
+function applyPerturbations(planet: string, T1900: number, lon: number): number {
+  if (planet === 'Jupiter') {
+    const A = 331.7 + 862.0 * T1900; // mean longitude of Saturn
+    const P = norm360(A);
+    // Perturbation by Saturn
+    lon += (0.3314 - 0.0104 * T1900) * sinD(norm360(163.6 + 1.4 * T1900))
+         + (0.0644 - 0.0006 * T1900) * cosD(norm360(163.6 + 1.4 * T1900))
+         + 0.1985 * sinD(norm360(318.4 + 1222.1 * T1900 - 238.0 - 3036.3 * T1900))
+         - 0.1283 * cosD(norm360(318.4 + 1222.1 * T1900 - 238.0 - 3036.3 * T1900));
+  } else if (planet === 'Saturn') {
+    // Perturbation by Jupiter
+    lon += (-0.8142 + 0.0094 * T1900) * sinD(norm360(163.6 + 1.4 * T1900))
+         + (-0.0520 + 0.0023 * T1900) * cosD(norm360(163.6 + 1.4 * T1900))
+         + 0.1164 * sinD(norm360(238.0 + 3036.3 * T1900 - 318.4 - 1222.1 * T1900))
+         + 0.1488 * cosD(norm360(238.0 + 3036.3 * T1900 - 318.4 - 1222.1 * T1900));
+  }
+  return norm360(lon);
 }
 
-function getSaturnLongitude(T: number): number {
-  const L = norm360(50.077444 + 1223.5110686 * T + 0.00051908 * T * T);
-  const M = norm360(317.020667 + 1222.1138378 * T + 0.00000881 * T * T);
-  let v = L;
-  v += (6.4064 * sinD(M) + 0.5581 * sinD(2*M) + 0.0617 * sinD(3*M))
-     * (1.0 - 0.0003 * T);
-  // Jupiter perturbation
-  const Mjup = norm360(20.020 + 3034.696 * T);
-  const diff = Mjup - M;
-  v += 0.8444 * sinD(diff) - 0.1593 * sinD(2*diff) - 0.2328 * sinD(2*Mjup - 5*M);
-  return norm360(v);
+// Main planet longitude function
+function getPlanetLongitude(jd: number, planet: string): number {
+  if (planet === 'Sun') return getSunLongitude(jd);
+  if (planet === 'Moon') return getMoonLongitude(jd);
+  
+  const T1900 = (jd - 2415020.0) / 36525.0; // centuries from 1900.0
+  
+  const planetElem = getOrbitalElements(planet, T1900);
+  const earthElem = getOrbitalElements('Earth', T1900);
+  
+  const planetHel = heliocentricPosition(planetElem);
+  const earthHel = heliocentricPosition(earthElem);
+  
+  let geoLon = helioToGeo(planetHel, earthHel);
+  
+  // Apply perturbations for Jupiter and Saturn
+  if (planet === 'Jupiter' || planet === 'Saturn') {
+    geoLon = applyPerturbations(planet, T1900, geoLon);
+  }
+  
+  // Aberration correction (~20.5")
+  geoLon -= 0.005694;
+  
+  return norm360(geoLon);
 }
 
 // ============================================================
-// RAHU / KETU — Mean lunar nodes with perturbation
+// RAHU / KETU — Mean lunar nodes (Meeus Ch. 47)
 // ============================================================
 function getRahuKetu(jd: number): { rahu: number; ketu: number } {
   const T = (jd - 2451545.0) / 36525.0;
   // Mean ascending node (Rahu) — Meeus formula
-  let omega = 125.04452 - 1934.13626 * T + 0.00220 * T * T + T * T * T / 467441.0;
+  let omega = 125.0445479 - 1934.1362891 * T + 0.0020754 * T * T
+              + T * T * T / 467441.0 - T * T * T * T / 60616000.0;
   omega = norm360(omega);
-  // Apply perturbation corrections
-  const Msun = norm360(357.5291 + 35999.0503 * T);
-  const Mmoon = norm360(134.9634 + 477198.8676 * T);
-  omega += -1.4979 * sinD(2 * (omega - norm360(218.32 + 481267.883 * T)))
-           + 0.1500 * sinD(Msun) - 0.1226 * sinD(2 * Mmoon);
+  
+  // Apply primary perturbation corrections for true node
+  const Msun = norm360(357.5291092 + 35999.0502909 * T);
+  const Mmoon = norm360(134.9633964 + 477198.8675055 * T);
+  const D = norm360(297.8501921 + 445267.1114034 * T);
+  const F = norm360(93.2720950 + 483202.0175233 * T);
+  
+  // True node corrections (simplified)
+  omega += -1.4979 * sinD(2 * D)
+           - 0.1500 * sinD(Msun)
+           + 0.1226 * sinD(2 * D - Mmoon)
+           - 0.1176 * sinD(2 * Mmoon)
+           + 0.0801 * sinD(2 * D - 2 * Mmoon);
+  
   const rahu = norm360(omega);
   const ketu = norm360(rahu + 180);
   return { rahu, ketu };
@@ -314,11 +446,12 @@ function toSidereal(tropicalLong: number, ayanamsha: number): number {
 
 // ============================================================
 // ASCENDANT (LAGNA) — Precise calculation with full nutation
+// Meeus Ch. 14 + proper apparent sidereal time
 // ============================================================
 function calculateAscendant(jd: number, latitude: number, geoLongitude: number): number {
   const T = (jd - 2451545.0) / 36525.0;
   
-  // Greenwich Mean Sidereal Time (Meeus Ch.12 formula)
+  // Greenwich Mean Sidereal Time (Meeus Ch.12)
   let GMST = 280.46061837 + 360.98564736629 * (jd - 2451545.0)
            + 0.000387933 * T * T - T * T * T / 38710000.0;
   GMST = norm360(GMST);
@@ -326,7 +459,7 @@ function calculateAscendant(jd: number, latitude: number, geoLongitude: number):
   // Nutation
   const { deltaPsi, deltaEps } = getNutation(T);
   
-  // True obliquity (mean + nutation in obliquity)
+  // True obliquity
   const eps0 = getObliquity(T);
   const obliquity = eps0 + deltaEps;
   
@@ -336,13 +469,9 @@ function calculateAscendant(jd: number, latitude: number, geoLongitude: number):
   // Local Sidereal Time
   const LST = norm360(apparentGMST + geoLongitude);
   
-  // Ascendant formula (Meeus Ch.14)
-  const oblRad = obliquity * DEG;
-  const latRad = latitude * DEG;
-  const lstRad = LST * DEG;
-  
-  const y = -Math.cos(lstRad);
-  const x = Math.sin(oblRad) * Math.tan(latRad) + Math.cos(oblRad) * Math.sin(lstRad);
+  // Ascendant formula (Meeus)
+  const y = -cosD(LST);
+  const x = sinD(obliquity) * tanD(latitude) + cosD(obliquity) * sinD(LST);
   let asc = atan2D(y, x);
   asc = norm360(asc);
   
@@ -354,9 +483,9 @@ function calculateAscendant(jd: number, latitude: number, geoLongitude: number):
 // ============================================================
 function isRetrograde(planet: string, jd: number): boolean {
   if (planet === 'Sun' || planet === 'Moon') return false;
-  if (planet === 'Rahu' || planet === 'Ketu') return true; // always "retrograde"
+  if (planet === 'Rahu' || planet === 'Ketu') return true;
   
-  const delta = 0.1; // 0.1 day step
+  const delta = 0.5; // half-day step for better derivative
   const L1 = getPlanetLongitude(jd - delta, planet);
   const L2 = getPlanetLongitude(jd + delta, planet);
   let diff = L2 - L1;
@@ -371,26 +500,21 @@ function isRetrograde(planet: string, jd: number): boolean {
 function getPlanetDignity(planet: string, signIndex: number, degreeInSign: number): string {
   if (planet === 'Rahu' || planet === 'Ketu') return 'Neutral';
   
-  // 1. Exaltation
   const exalt = EXALTATION[planet];
   if (exalt && exalt[0] === signIndex) return 'Exalted';
   
-  // 2. Debilitation
   if (DEBILITATION[planet] === signIndex) return 'Debilitated';
   
-  // 3. Moolatrikona (degree range check)
   const moola = MOOLATRIKONA[planet];
   if (moola && moola[0] === signIndex && degreeInSign >= moola[1] && degreeInSign <= moola[2]) {
     return 'Moolatrikona';
   }
   
-  // 4. Own sign
   if (SIGN_LORDS[signIndex] === planet) return 'Own Sign';
   
-  // 5. Friendly / Neutral / Enemy
   const signLord = SIGN_LORDS[signIndex];
-  if (FRIENDS[planet]?.includes(signLord)) return 'Friend\'s Sign';
-  if (ENEMIES[planet]?.includes(signLord)) return 'Enemy\'s Sign';
+  if (FRIENDS[planet]?.includes(signLord)) return "Friend's Sign";
+  if (ENEMIES[planet]?.includes(signLord)) return "Enemy's Sign";
   
   return 'Neutral';
 }
@@ -419,7 +543,6 @@ function getNakshatraPada(longitude: number): number {
 
 // ============================================================
 // WHOLE SIGN HOUSES — Classical Jyotish system
-// House 1 = entire sign of the Ascendant
 // ============================================================
 function getHouseNumber(planetSidLong: number, ascSignIndex: number): number {
   const planetSign = getSignIndex(planetSidLong);
@@ -430,28 +553,29 @@ function getHouseNumber(planetSidLong: number, ascSignIndex: number): number {
 // DIVISIONAL CHARTS — Mathematically precise
 // ============================================================
 
-// D9 Navamsa: Each sign divided into 9 parts of 3 deg 20'
-// Fire signs (Aries, Leo, Sag) start from Aries
-// Earth signs (Taurus, Virgo, Cap) start from Capricorn
-// Air signs (Gemini, Libra, Aquarius) start from Libra
-// Water signs (Cancer, Scorpio, Pisces) start from Cancer
+// D9 Navamsa: Each sign divided into 9 parts of 3°20'
+// Fire signs (Aries, Leo, Sag) start from Aries (0)
+// Earth signs (Taurus, Virgo, Cap) start from Capricorn (9)
+// Air signs (Gemini, Libra, Aquarius) start from Libra (6)
+// Water signs (Cancer, Scorpio, Pisces) start from Cancer (3)
 function getNavamsaSign(sidLongitude: number): number {
   const signIndex = getSignIndex(sidLongitude);
   const degInSign = getDegreeInSign(sidLongitude);
   const navamsaPart = Math.floor(degInSign / (30.0 / 9.0));
-  const startBases = [0, 9, 6, 3]; // Fire→Aries, Earth→Cap, Air→Libra, Water→Cancer
+  // Element group: Fire=0, Earth=1, Air=2, Water=3
   const elementGroup = signIndex % 4;
+  const startBases = [0, 9, 6, 3]; // Fire→Aries, Earth→Cap, Air→Libra, Water→Cancer
   return (startBases[elementGroup] + navamsaPart) % 12;
 }
 
-// D10 Dashamsa: Each sign divided into 10 parts of 3 deg each
-// Odd signs count from same sign; Even signs count from the 9th sign
+// D10 Dashamsa: Each sign divided into 10 parts of 3° each
+// Odd signs (1,3,5...) count from same sign; Even signs (2,4,6...) count from 9th sign
 function getDashamsaSign(sidLongitude: number): number {
   const signIndex = getSignIndex(sidLongitude);
   const degInSign = getDegreeInSign(sidLongitude);
   const part = Math.floor(degInSign / 3.0);
   if (signIndex % 2 === 0) {
-    // Odd signs (0-indexed even = Aries, Gemini, etc.)
+    // Odd signs (0-indexed: Aries=0, Gemini=2, etc.)
     return (signIndex + part) % 12;
   } else {
     // Even signs: count from 9th
@@ -459,18 +583,14 @@ function getDashamsaSign(sidLongitude: number): number {
   }
 }
 
-// D60 Shastiamsa: Each sign divided into 60 parts of 0.5 deg each
-// Odd signs: 1st shastiamsa = same sign, then cycle through all 12 signs (5 rounds)
-// Even signs: 1st shastiamsa starts from opposite (7th) sign
+// D60 Shastiamsa: Each sign divided into 60 parts of 0.5° each
 function getShastiamsaSign(sidLongitude: number): number {
   const signIndex = getSignIndex(sidLongitude);
   const degInSign = getDegreeInSign(sidLongitude);
-  const part = Math.floor(degInSign / 0.5); // 0-59
+  const part = Math.floor(degInSign / 0.5);
   if (signIndex % 2 === 0) {
-    // Odd signs: start from same sign
     return (signIndex + part) % 12;
   } else {
-    // Even signs: start from 7th sign
     return (signIndex + 6 + part) % 12;
   }
 }
@@ -482,7 +602,6 @@ function calculateVimshottariDasha(moonSidLong: number, birthJD: number) {
   const nakIndex = getNakshatraIndex(moonSidLong);
   const nakLord = NAKSHATRA_LORDS[nakIndex];
   
-  // Elapsed fraction in current nakshatra
   const nakSpan = 360.0 / 27.0;
   const posInNak = norm360(moonSidLong) % nakSpan;
   const elapsedFraction = posInNak / nakSpan;
@@ -513,7 +632,6 @@ function calculateVimshottariDasha(moonSidLong: number, birthJD: number) {
     const endJD = jdCursor + days;
     const isCurrent = nowJD >= jdCursor && nowJD < endJD;
     
-    // Antardasha sub-periods
     const antardasha: Array<{planet: string; startDate: string; endDate: string; isCurrent: boolean}> = [];
     let adJD = jdCursor;
     for (let j = 0; j < 9; j++) {
@@ -546,7 +664,7 @@ function calculateVimshottariDasha(moonSidLong: number, birthJD: number) {
 }
 
 // ============================================================
-// DOSHA ANALYSIS — Sidereal positions
+// DOSHA ANALYSIS
 // ============================================================
 function analyzeDoshas(planets: PlanetData[], ascSignIndex: number) {
   const doshas: Array<{
@@ -565,7 +683,6 @@ function analyzeDoshas(planets: PlanetData[], ascSignIndex: number) {
   const manglikHouses = [1, 2, 4, 7, 8, 12];
   const isManglik = manglikHouses.includes(marsHouse);
   
-  // Cancellation checks
   let manglikCancelled = false;
   if (isManglik) {
     if (jupiter && (jupiter.house === 7 || jupiter.house === 1)) manglikCancelled = true;
@@ -582,14 +699,14 @@ function analyzeDoshas(planets: PlanetData[], ascSignIndex: number) {
     detected: isManglik,
     severity: manglikSeverity,
     description: isManglik
-      ? `Mars occupies the ${marsHouse}${ordinal(marsHouse)} house from your Ascendant.${manglikCancelled ? ' However, this dosha is significantly reduced due to cancellation factors in your chart.' : ''} This placement channels heightened Mars energy into ${getHouseTheme(marsHouse)}. In modern interpretation, this indicates a need for constructive outlets for your assertive energy in relationships.`
-      : 'Mars is not placed in the 1st, 2nd, 4th, 7th, 8th, or 12th house from Ascendant. No Mangalik Dosha is present in your chart.',
+      ? `Mars occupies the ${marsHouse}${ordinal(marsHouse)} house from your Ascendant.${manglikCancelled ? ' However, this dosha is significantly reduced due to cancellation factors in your chart.' : ''} This placement channels heightened Mars energy into ${getHouseTheme(marsHouse)}.`
+      : 'Mars is not placed in the 1st, 2nd, 4th, 7th, 8th, or 12th house from Ascendant. No Mangalik Dosha is present.',
     remedies: isManglik && !manglikCancelled ? [
-      'Recite Hanuman Chalisa on Tuesdays for Mars pacification',
-      'Wear a red coral gemstone (Moonga) on the ring finger after expert consultation',
-      'Channel Mars energy through regular physical exercise or competitive sports',
-      'Perform Mangal Shanti puja to harmonize Mars energy',
-      'Consider Kundli matching for marriage compatibility (double Manglik match)'
+      'Recite Hanuman Chalisa on Tuesdays',
+      'Wear a red coral gemstone after expert consultation',
+      'Channel Mars energy through regular physical exercise',
+      'Perform Mangal Shanti puja',
+      'Consider Kundli matching for marriage compatibility'
     ] : []
   });
   
@@ -599,11 +716,8 @@ function analyzeDoshas(planets: PlanetData[], ascSignIndex: number) {
   const sevenPlanets = planets.filter(p => !['Rahu','Ketu'].includes(p.name));
   
   function inArc(pLong: number, startLong: number, endLong: number): boolean {
-    if (startLong < endLong) {
-      return pLong >= startLong && pLong <= endLong;
-    } else {
-      return pLong >= startLong || pLong <= endLong;
-    }
+    if (startLong < endLong) return pLong >= startLong && pLong <= endLong;
+    return pLong >= startLong || pLong <= endLong;
   }
   
   const allRahuToKetu = sevenPlanets.every(p => inArc(p.siderealLongitude, rahuLong, ketuLong));
@@ -625,14 +739,14 @@ function analyzeDoshas(planets: PlanetData[], ascSignIndex: number) {
     detected: isKaalSarp,
     severity: isKaalSarp ? 55 : 0,
     description: isKaalSarp
-      ? `All seven planets are positioned within the Rahu-Ketu axis, forming ${kaalSarpType} Kaal Sarp Yoga. This indicates concentrated karmic energy that manifests as intense focus, sudden life changes, and deep transformation. Many historically significant leaders and innovators have had this yoga.`
-      : 'Planets are distributed on both sides of the Rahu-Ketu axis. No Kaal Sarp Dosha is present.',
+      ? `All seven planets are within the Rahu-Ketu axis, forming ${kaalSarpType} Kaal Sarp Yoga. This indicates concentrated karmic energy.`
+      : 'Planets are distributed on both sides of the Rahu-Ketu axis. No Kaal Sarp Dosha.',
     remedies: isKaalSarp ? [
-      'Perform Kaal Sarp Dosh Nivaran Puja at Trimbakeshwar or Ujjain',
+      'Perform Kaal Sarp Dosh Nivaran Puja at Trimbakeshwar',
       'Chant "Om Namah Shivaya" 108 times daily',
-      'Practice mindfulness meditation to channel intense karmic energy',
-      'Feed birds, especially crows, on Saturdays',
-      'Wear a Gomed (Hessonite) or Cat\'s Eye gemstone after proper consultation'
+      'Practice mindfulness meditation',
+      'Feed birds on Saturdays',
+      'Wear Gomed or Cat\'s Eye after consultation'
     ] : []
   });
   
@@ -648,14 +762,14 @@ function analyzeDoshas(planets: PlanetData[], ascSignIndex: number) {
     detected: isPitra,
     severity: isPitra ? (sunRahuConjunct ? 55 : 35) : 0,
     description: isPitra
-      ? `${sunRahuConjunct ? `Sun and Rahu are within ${normalizedDist.toFixed(1)} degrees of each other` : 'Rahu occupies your 9th house (house of father and dharma)'}. This indicates ancestral karmic patterns that benefit from conscious acknowledgment. Rather than viewing this as a curse, understand it as an invitation to honor your lineage and create positive generational karma.`
-      : 'No Pitra Dosha detected. Sun and Rahu are well-separated, and the 9th house is free from Rahu\'s influence.',
+      ? `${sunRahuConjunct ? `Sun and Rahu are within ${normalizedDist.toFixed(1)}\u00b0` : 'Rahu occupies the 9th house'}. Ancestral karmic patterns indicated.`
+      : 'No Pitra Dosha detected.',
     remedies: isPitra ? [
-      'Perform Tarpan (water offering) for ancestors on Amavasya',
-      'Offer water to the Sun at sunrise while chanting Gayatri Mantra',
-      'Donate food or clothing to elderly people on Sundays',
-      'Plant a Peepal tree and care for it regularly',
-      'Perform Pind Daan at Gaya or similar sacred site if recommended'
+      'Perform Tarpan for ancestors on Amavasya',
+      'Offer water to the Sun at sunrise',
+      'Donate food or clothing to elderly on Sundays',
+      'Plant a Peepal tree',
+      'Perform Pind Daan if recommended'
     ] : []
   });
   
@@ -663,17 +777,15 @@ function analyzeDoshas(planets: PlanetData[], ascSignIndex: number) {
 }
 
 // ============================================================
-// SADE SATI — Uses CURRENT transit Saturn position, not birth
+// SADE SATI — Current transit Saturn
 // ============================================================
 function analyzeSadeSati(moonSignIndex: number) {
-  // Get current date's Julian Day
   const now = new Date();
   const nowJD = dateToJD(now.getFullYear(), now.getMonth() + 1, now.getDate(),
     (now.getHours() + now.getMinutes() / 60) / 24);
   const nowAyanamsha = getLahiriAyanamsha(nowJD);
   
-  // Get CURRENT Saturn position (transit, not natal)
-  const saturnTropLong = getSaturnLongitude((nowJD - 2451545.0) / 36525.0);
+  const saturnTropLong = getPlanetLongitude(nowJD, 'Saturn');
   const saturnSidLong = toSidereal(saturnTropLong, nowAyanamsha);
   const saturnSign = getSignIndex(saturnSidLong);
   
@@ -711,23 +823,23 @@ function analyzeSadeSati(moonSignIndex: number) {
     saturnSign: SIGNS[saturnSign],
     startDate, endDate,
     progress: parseFloat(progress.toFixed(1)),
-    effects: isActive ? getSadeSatiEffects(phase!) : 'Sade Sati is currently not active for your Moon sign. This period supports stability, growth, and consolidation of past efforts.',
+    effects: isActive ? getSadeSatiEffects(phase!) : 'Sade Sati is not active for your Moon sign.',
     recommendations: isActive ? [
-      'Practice patience — Saturn rewards disciplined effort over time',
-      'Prioritize health and establish consistent self-care routines',
-      'Chant "Om Sham Shanaishcharaya Namah" 108 times on Saturdays',
-      'Consult an expert before wearing a Blue Sapphire (Neelam)',
-      'Donate mustard oil, black sesame, or dark cloth on Saturdays',
-      'Light a mustard oil lamp under a Peepal tree on Saturday evenings'
+      'Practice patience and disciplined effort',
+      'Prioritize health and self-care routines',
+      'Chant "Om Sham Shanaishcharaya Namah" on Saturdays',
+      'Consult before wearing Blue Sapphire',
+      'Donate mustard oil or dark cloth on Saturdays',
+      'Light a mustard oil lamp under a Peepal tree on Saturdays'
     ] : []
   };
 }
 
 function getSadeSatiEffects(phase: string): string {
   const effects: Record<string, string> = {
-    'Rising (1st Phase)': 'The first phase transits the 12th house from your Moon, affecting your emotional landscape, sleep patterns, and subconscious mind. You may experience shifts in your comfort zone, increased expenses, or changes in living environment. This phase teaches emotional resilience and detachment from material security.',
-    'Peak (2nd Phase)': 'Saturn now directly transits your Moon sign, affecting your mind, emotional core, and overall well-being. This is the most intense phase where Saturn restructures your fundamental approach to life. Career shifts, relationship changes, and deep self-reflection are common themes.',
-    'Setting (3rd Phase)': 'The final phase transits the 2nd house from your Moon, impacting finances, family dynamics, and self-worth. Earlier lessons are now integrating. Financial discipline, careful communication, and resource management become important themes as this cycle concludes.'
+    'Rising (1st Phase)': 'Saturn transits the 12th from your Moon, affecting emotional landscape and subconscious. Teaches emotional resilience.',
+    'Peak (2nd Phase)': 'Saturn directly transits your Moon sign. Most intense phase affecting mind and wellbeing. Career shifts and deep reflection.',
+    'Setting (3rd Phase)': 'Saturn transits the 2nd from your Moon, impacting finances and family. Lessons integrate as this cycle concludes.'
   };
   return effects[phase] || '';
 }
@@ -769,15 +881,15 @@ function getTransitEffect(planet: string, signIdx: number, retro: boolean): stri
   const s = SIGNS[signIdx];
   const e = SIGN_ELEMENTS[signIdx].toLowerCase();
   const effects: Record<string, string> = {
-    Sun: `The Sun illuminates ${s}, activating ${e}-element themes of confidence, authority, and self-expression.`,
-    Moon: `The Moon flows through ${s}, bringing emotional awareness to ${e}-element matters. Honor your feelings today.`,
-    Mars: retro ? `Mars retrograde in ${s} redirects assertive energy inward. Avoid impulsive decisions — review and refine plans instead.` : `Mars in ${s} energizes ${e}-element pursuits. Channel this drive into productive goals and physical activity.`,
-    Mercury: retro ? `Mercury retrograde in ${s} invites revision and reflection. Double-check communications and delay major signings.` : `Mercury in ${s} sharpens ${e}-element communication. A favorable time for learning, writing, and negotiations.`,
-    Jupiter: `Jupiter in ${s} expands ${e}-element domains with wisdom and opportunity. A period of growth through knowledge and ethics.`,
-    Venus: retro ? `Venus retrograde in ${s} asks you to reassess values, relationships, and creative priorities.` : `Venus in ${s} brings harmony and beauty to ${e}-element expressions. Favorable for relationships and creative work.`,
-    Saturn: `Saturn in ${s} teaches discipline through ${e}-element lessons. Patience and perseverance build lasting structures.`,
-    Rahu: `Rahu in ${s} amplifies ambition in ${e}-element domains. Pursue growth mindfully and avoid shortcuts.`,
-    Ketu: `Ketu in ${s} promotes spiritual detachment from ${e}-element attachments. Inner wisdom emerges through letting go.`
+    Sun: `SUN illuminates ${s}, activating ${e}-element themes of confidence and authority.`,
+    Moon: `MON flows through ${s}, bringing emotional awareness to ${e}-element matters.`,
+    Mars: retro ? `MAR retrograde in ${s} redirects energy inward. Review plans.` : `MAR in ${s} energizes ${e}-element pursuits.`,
+    Mercury: retro ? `MER retrograde in ${s} invites revision. Double-check communications.` : `MER in ${s} sharpens ${e}-element communication.`,
+    Jupiter: `JUP in ${s} expands ${e}-element domains with wisdom and opportunity.`,
+    Venus: retro ? `VEN retrograde in ${s} asks to reassess values and relationships.` : `VEN in ${s} brings harmony to ${e}-element expressions.`,
+    Saturn: `SAT in ${s} teaches discipline through ${e}-element lessons.`,
+    Rahu: `RAH in ${s} amplifies ambition in ${e}-element domains.`,
+    Ketu: `KET in ${s} promotes spiritual detachment from ${e}-element attachments.`
   };
   return effects[planet] || '';
 }
@@ -819,9 +931,9 @@ function calcStr(p1: PlanetData, p2: PlanetData, goodHouses: number[]): number {
   if (p1.dignity === 'Exalted') s += 22;
   else if (p1.dignity === 'Moolatrikona') s += 16;
   else if (p1.dignity === 'Own Sign') s += 14;
-  else if (p1.dignity === 'Friend\'s Sign') s += 6;
+  else if (p1.dignity === "Friend's Sign") s += 6;
   else if (p1.dignity === 'Debilitated') s -= 18;
-  else if (p1.dignity === 'Enemy\'s Sign') s -= 8;
+  else if (p1.dignity === "Enemy's Sign") s -= 8;
   
   if (p2.dignity === 'Exalted') s += 16;
   else if (p2.dignity === 'Own Sign' || p2.dignity === 'Moolatrikona') s += 10;
@@ -835,48 +947,41 @@ function calcStr(p1: PlanetData, p2: PlanetData, goodHouses: number[]): number {
 }
 
 const ASC_TRAITS: Record<number, string> = {
-  0: 'a pioneering spirit, natural leadership ability, and fearless initiative. You are action-oriented with strong willpower.',
-  1: 'steadfast determination, refined aesthetic sense, and practical wisdom. You value stability and sensory experience.',
-  2: 'intellectual curiosity, versatile communication skills, and quick adaptability. Your mind is your greatest asset.',
-  3: 'deep emotional intelligence, a nurturing instinct, and intuitive perception. You feel and understand deeply.',
-  4: 'magnetic charisma, creative confidence, and generous spirit. You naturally command attention and inspire others.',
-  5: 'analytical precision, attention to detail, and a service-oriented mindset. You excel at improving systems.',
-  6: 'diplomatic grace, aesthetic appreciation, and a natural orientation toward partnership and harmony.',
-  7: 'transformative depth, investigative ability, and emotional intensity. You understand what lies beneath the surface.',
-  8: 'philosophical vision, adventurous enthusiasm, and boundless optimism. You seek truth and expansion.',
-  9: 'ambitious determination, strategic thinking, and enduring patience. You build lasting structures.',
-  10: 'innovative thinking, humanitarian ideals, and a unique perspective. You challenge convention constructively.',
-  11: 'spiritual sensitivity, creative imagination, and deep compassion. Your intuition guides you through life.'
+  0: 'a pioneering spirit, natural leadership, and fearless initiative.',
+  1: 'steadfast determination, refined aesthetic sense, and practical wisdom.',
+  2: 'intellectual curiosity, versatile communication, and quick adaptability.',
+  3: 'deep emotional intelligence, nurturing instinct, and intuitive perception.',
+  4: 'magnetic charisma, creative confidence, and generous spirit.',
+  5: 'analytical precision, attention to detail, and service-oriented mindset.',
+  6: 'diplomatic grace, aesthetic appreciation, and partnership orientation.',
+  7: 'transformative depth, investigative ability, and emotional intensity.',
+  8: 'philosophical vision, adventurous enthusiasm, and boundless optimism.',
+  9: 'ambitious determination, strategic thinking, and enduring patience.',
+  10: 'innovative thinking, humanitarian ideals, and unique perspective.',
+  11: 'spiritual sensitivity, creative imagination, and deep compassion.'
 };
 
 function buildPersonality(ascSign: number, moonSign: number, sun: PlanetData, moon: PlanetData, _mars: PlanetData): string {
-  return `Your ${SIGNS[ascSign]} Ascendant gives you ${ASC_TRAITS[ascSign]}\n\nWith Moon in ${SIGNS[moonSign]} (${moon.nakshatra}, Pada ${moon.nakshatraPada}), your emotional core operates through ${SIGN_ELEMENTS[moonSign].toLowerCase()} energy. The ${moon.nakshatra} nakshatra lends ${getNakshatraQuality(moon.nakshatraIndex)} to your emotional nature.\n\nThe Sun in ${sun.sign} in your ${sun.house}${ordinal(sun.house)} house directs your life force toward ${getHouseTheme(sun.house)}. ${sun.dignity === 'Exalted' ? 'Your exalted Sun gives exceptional confidence and purpose.' : sun.dignity === 'Debilitated' ? 'Your Sun placement calls for developing inner authority independent of external validation.' : `The Sun in ${sun.sign} expresses your identity through ${SIGN_ELEMENTS[sun.signIndex].toLowerCase()} qualities.`}`;
+  return `Your ${SIGNS[ascSign]} Ascendant gives you ${ASC_TRAITS[ascSign]}\n\nWith Moon in ${SIGNS[moonSign]} (${moon.nakshatra}, Pada ${moon.nakshatraPada}), your emotional core operates through ${SIGN_ELEMENTS[moonSign].toLowerCase()} energy. The ${moon.nakshatra} nakshatra lends ${getNakshatraQuality(moon.nakshatraIndex)} to your emotional nature.\n\nThe Sun in ${sun.sign} in your ${sun.house}${ordinal(sun.house)} house directs your life force toward ${getHouseTheme(sun.house)}.`;
 }
 
 function buildCareer(planets: PlanetData[], ascSign: number, _sun: PlanetData, _saturn: PlanetData, _jupiter: PlanetData, mercury: PlanetData): string {
   const tenthSign = (ascSign + 9) % 12;
   const tenthLord = SIGN_LORDS[tenthSign];
   const tenthLordP = planets.find(p => p.name === tenthLord);
-  const mc = planets.filter(p => p.house === 10);
   
   const fields: Record<string, string> = {
-    Sun: 'government, leadership, administration, medicine, or authority roles',
-    Moon: 'hospitality, healthcare, public relations, creative arts, or counseling',
-    Mars: 'engineering, technology, military, sports, surgery, or real estate',
-    Mercury: 'writing, IT, data science, trading, marketing, or communication fields',
-    Jupiter: 'education, law, finance, consulting, spirituality, or advisory roles',
-    Venus: 'arts, entertainment, luxury goods, design, beauty, or diplomacy',
-    Saturn: 'research, manufacturing, construction, agriculture, or systematic work'
+    Sun: 'government, leadership, administration, or authority roles',
+    Moon: 'hospitality, healthcare, public relations, or counseling',
+    Mars: 'engineering, technology, military, sports, or real estate',
+    Mercury: 'writing, IT, data science, trading, or communication',
+    Jupiter: 'education, law, finance, consulting, or advisory roles',
+    Venus: 'arts, entertainment, luxury goods, design, or diplomacy',
+    Saturn: 'research, manufacturing, construction, or systematic work'
   };
   
-  let text = `Your 10th house (career) falls in ${SIGNS[tenthSign]}, ruled by ${tenthLord}${tenthLordP ? ` which is placed in ${tenthLordP.sign} (${tenthLordP.house}${ordinal(tenthLordP.house)} house)` : ''}. This suggests strong aptitude for ${fields[tenthLord] || 'diverse professional fields'}.`;
-  
-  if (mc.length > 0) {
-    text += `\n\n${mc.map(p => `${p.name} in your 10th house brings ${p.name === 'Jupiter' ? 'expansion and ethical leadership' : p.name === 'Saturn' ? 'discipline and long-term career building' : p.name === 'Sun' ? 'authority and public recognition' : 'its unique energy'} to your professional life.`).join(' ')}`;
-  }
-  
-  text += `\n\nMercury (skill planet) in your ${mercury.house}${ordinal(mercury.house)} house indicates your intellectual strengths are best applied in ${getHouseTheme(mercury.house)}.`;
-  
+  let text = `Your 10th house falls in ${SIGNS[tenthSign]}, ruled by ${tenthLord}${tenthLordP ? ` placed in ${tenthLordP.sign} (H${tenthLordP.house})` : ''}. Aptitude for ${fields[tenthLord] || 'diverse fields'}.`;
+  text += `\n\nMER in H${mercury.house} indicates intellectual strengths best applied in ${getHouseTheme(mercury.house)}.`;
   return text;
 }
 
@@ -884,64 +989,51 @@ function buildLove(venus: PlanetData, mars: PlanetData, jupiter: PlanetData, _mo
   const seventhSign = (ascSign + 6) % 12;
   const seventhLord = SIGN_LORDS[seventhSign];
   
-  let text = `Venus in ${venus.sign} (${venus.house}${ordinal(venus.house)} house) defines your relationship style and aesthetic values. ${venus.dignity === 'Exalted' ? 'Exalted Venus bestows natural charm, deep romantic fulfillment, and strong aesthetic sense.' : venus.dignity === 'Debilitated' ? 'Venus here asks you to build authentic self-worth before seeking it through relationships.' : `Venus in ${venus.sign} expresses love through ${SIGN_ELEMENTS[venus.signIndex].toLowerCase()} qualities — ${venus.signIndex % 3 === 0 ? 'initiating and passionate' : venus.signIndex % 3 === 1 ? 'steady and devoted' : 'adaptable and communicative'}.`}`;
-  
-  text += `\n\nYour 7th house (partnerships) is ${SIGNS[seventhSign]}, ruled by ${seventhLord}. You are naturally attracted to partners who embody ${SIGNS[seventhSign]} qualities: ${getSignPartnerTraits(seventhSign)}.`;
-  
-  if (mars.house === 7) text += '\n\nMars in the 7th house brings passion and intensity to relationships. Channel this constructively through shared activities and honest communication.';
-  if (jupiter.house === 7) text += '\n\nJupiter blessing your 7th house indicates a wise, generous partner. Marriage is supported by mutual growth and respect.';
-  
+  let text = `VEN in ${venus.sign} (H${venus.house}) defines your relationship style. ${venus.dignity === 'Exalted' ? 'Exalted VEN bestows natural charm and romantic fulfillment.' : venus.dignity === 'Debilitated' ? 'VEN here asks to build authentic self-worth.' : `VEN in ${venus.sign} expresses love through ${SIGN_ELEMENTS[venus.signIndex].toLowerCase()} qualities.`}`;
+  text += `\n\nYour 7th house is ${SIGNS[seventhSign]}, ruled by ${seventhLord}. Attracted to partners with ${getSignPartnerTraits(seventhSign)}.`;
+  if (mars.house === 7) text += '\n\nMAR in H7 brings passion to relationships.';
+  if (jupiter.house === 7) text += '\n\nJUP in H7 indicates a wise, generous partner.';
   return text;
 }
 
 function buildFinance(jupiter: PlanetData, venus: PlanetData, saturn: PlanetData, planets: PlanetData[], ascSign: number): string {
   const secondLord = SIGN_LORDS[(ascSign + 1) % 12];
   const eleventhLord = SIGN_LORDS[(ascSign + 10) % 12];
-  const secondLordP = planets.find(p => p.name === secondLord);
-  const eleventhLordP = planets.find(p => p.name === eleventhLord);
   
-  let text = `Your 2nd house lord (${secondLord}) governs earned wealth${secondLordP ? `, placed in ${secondLordP.sign} (${secondLordP.house}${ordinal(secondLordP.house)} house)` : ''}. The 11th house lord (${eleventhLord}) controls income gains${eleventhLordP ? `, placed in ${eleventhLordP.sign} (${eleventhLordP.house}${ordinal(eleventhLordP.house)} house)` : ''}.`;
-  
+  let text = `2nd lord (${secondLord}) governs earned wealth. 11th lord (${eleventhLord}) controls income gains.`;
   const jStrong = jupiter.dignity === 'Exalted' || jupiter.dignity === 'Own Sign' || jupiter.dignity === 'Moolatrikona';
-  text += `\n\nJupiter (planet of wealth) in ${jupiter.sign} (${jupiter.house}${ordinal(jupiter.house)} house) indicates ${jStrong ? 'strong natural abundance and wise financial instincts' : 'moderate financial potential that grows through wisdom and disciplined planning'}.`;
-  
-  if (saturn.house === 2 || saturn.house === 11) {
-    text += '\n\nSaturn influencing your wealth houses favors steady, disciplined wealth-building. Long-term investments and systematic saving will be your strongest strategies.';
-  }
-  if (venus.house === 2) text += '\n\nVenus in the 2nd house suggests wealth through beauty, arts, luxury goods, or creative industries.';
-  
-  text += '\n\nPeak earning periods coincide with favorable Mahadasha and Antardasha transitions — check the Dasha section for timing.';
-  
+  text += `\n\nJUP in ${jupiter.sign} (H${jupiter.house}): ${jStrong ? 'strong natural abundance' : 'moderate potential growing through wisdom'}.`;
+  if (saturn.house === 2 || saturn.house === 11) text += '\n\nSAT in wealth houses favors disciplined wealth-building.';
   return text;
 }
 
 function buildKarma(saturn: PlanetData, rahu: PlanetData, ketu: PlanetData, _ascSign: number): string {
-  return `Saturn in ${saturn.sign} (${saturn.house}${ordinal(saturn.house)} house) reveals your primary karmic assignment: mastering ${getHouseTheme(saturn.house)}. ${saturn.retrograde ? 'Retrograde Saturn intensifies these lessons, pointing to unresolved patterns from past incarnations.' : 'Saturn direct helps you face karmic patterns through steady, practical effort.'}\n\nRahu in ${rahu.sign} (${rahu.house}${ordinal(rahu.house)} house) marks where your soul seeks new growth: ${getHouseTheme(rahu.house)}. This is your area of greatest potential if approached with integrity.\n\nKetu in ${ketu.sign} (${ketu.house}${ordinal(ketu.house)} house) represents abilities mastered in past lives: ${getHouseTheme(ketu.house)}. While these skills come naturally, your dharmic growth lies in developing the opposite Rahu-indicated qualities.\n\nThe Rahu-Ketu axis across houses ${rahu.house} and ${ketu.house} defines the central evolutionary tension in your chart: balancing past-life expertise with present-life aspirations.`;
+  return `SAT in ${saturn.sign} (H${saturn.house}): karmic assignment in ${getHouseTheme(saturn.house)}.\n\nRAH in ${rahu.sign} (H${rahu.house}): soul seeks growth in ${getHouseTheme(rahu.house)}.\n\nKET in ${ketu.sign} (H${ketu.house}): past-life mastery in ${getHouseTheme(ketu.house)}.`;
 }
 
 function getNakshatraQuality(nakIdx: number): string {
   const qualities = [
-    'swiftness and healing energy', 'fierce determination and transformation', 'purifying fire and authority',
-    'growth, fertility, and creativity', 'searching curiosity and exploration', 'intellectual storm and breakthrough',
-    'renewal, return, and wisdom', 'nourishing stability and devotion', 'mystical intensity and serpentine wisdom',
-    'regal authority and ancestral honor', 'creative pleasure and artistic talent', 'sustained power and patronage',
-    'skillful craftsmanship and adaptability', 'brilliance, beauty, and creative vision', 'independence and self-directed growth',
-    'purposeful determination and dual nature', 'devoted friendship and cosmic connection', 'protective authority and seniority',
-    'uprooting of the old and radical insight', 'invincible resolve and purifying energy', 'universal responsibility and integrity',
-    'deep listening and learning ability', 'musical rhythm and material abundance', 'vast space and healing ability',
-    'fiery transformative power', 'deep oceanic wisdom and spiritual depth', 'nurturing completion and cosmic travel'
+    'swiftness and healing energy', 'fierce determination', 'purifying fire and authority',
+    'growth and creativity', 'searching curiosity', 'intellectual breakthrough',
+    'renewal and wisdom', 'nourishing stability', 'mystical intensity',
+    'regal authority', 'creative pleasure', 'sustained power',
+    'skillful craftsmanship', 'brilliance and beauty', 'independence and self-direction',
+    'purposeful determination', 'devoted friendship', 'protective authority',
+    'radical insight', 'invincible resolve', 'universal responsibility',
+    'deep listening ability', 'rhythmic abundance', 'vast healing ability',
+    'fiery transformative power', 'deep oceanic wisdom', 'nurturing completion'
   ];
   return qualities[nakIdx] || 'distinctive energy';
 }
 
 function getSignPartnerTraits(signIdx: number): string {
   const traits: Record<number, string> = {
-    0: 'courage, independence, and directness', 1: 'stability, sensuality, and loyalty',
-    2: 'wit, versatility, and intellectual spark', 3: 'emotional depth, nurturing, and family values',
-    4: 'confidence, warmth, and generosity', 5: 'intelligence, health-consciousness, and practicality',
-    6: 'elegance, fairness, and social grace', 7: 'intensity, passion, and emotional honesty',
-    8: 'adventure, philosophy, and spiritual seeking', 9: 'ambition, maturity, and reliability',
-    10: 'uniqueness, intellectual freedom, and humanitarianism', 11: 'sensitivity, imagination, and spiritual depth'
+    0: 'courage and directness', 1: 'stability and loyalty',
+    2: 'wit and versatility', 3: 'emotional depth and family values',
+    4: 'confidence and warmth', 5: 'intelligence and practicality',
+    6: 'elegance and fairness', 7: 'intensity and passion',
+    8: 'adventure and philosophy', 9: 'ambition and reliability',
+    10: 'uniqueness and freedom', 11: 'sensitivity and imagination'
   };
   return traits[signIdx] || 'unique qualities';
 }
@@ -959,18 +1051,18 @@ function ordinal(n: number): string {
 
 function getHouseTheme(house: number): string {
   const themes: Record<number, string> = {
-    1: 'self-identity, physical vitality, and personal initiative',
-    2: 'wealth, family values, speech, and accumulated resources',
-    3: 'courage, communication, short travels, and siblings',
-    4: 'home, mother, emotional security, and inner peace',
-    5: 'creativity, children, romance, education, and past-life merit',
-    6: 'health, service, competition, obstacles, and daily routines',
-    7: 'partnerships, marriage, business alliances, and public dealings',
-    8: 'transformation, occult knowledge, longevity, and shared resources',
-    9: 'higher learning, dharma, fortune, father, and long journeys',
-    10: 'career, reputation, authority, and public achievement',
-    11: 'gains, aspirations, elder siblings, and social networks',
-    12: 'liberation, foreign lands, expenses, and spiritual surrender'
+    1: 'self-identity and vitality',
+    2: 'wealth, family, and speech',
+    3: 'courage, communication, and siblings',
+    4: 'home, mother, and inner peace',
+    5: 'creativity, children, and education',
+    6: 'health, service, and competition',
+    7: 'partnerships and marriage',
+    8: 'transformation and longevity',
+    9: 'higher learning and dharma',
+    10: 'career and public achievement',
+    11: 'gains and aspirations',
+    12: 'liberation and spiritual surrender'
   };
   return themes[house] || 'life experiences';
 }
@@ -979,7 +1071,7 @@ function getHouseTheme(house: number): string {
 // MAIN INTERFACES & ENTRY POINT
 // ============================================================
 export interface PlanetData {
-  name: string; symbol: string;
+  name: string; symbol: string; abbr: string;
   longitude: number; siderealLongitude: number;
   sign: string; signIndex: number; signSanskrit: string;
   degreeInSign: number;
@@ -1036,7 +1128,6 @@ export function calculateBirthChart(
   let adjYear = year, adjMonth = month, adjDay = day;
   let adjHour = utcHourDecimal;
   
-  // Handle day rollover from timezone conversion
   if (adjHour < 0) {
     adjHour += 24;
     adjDay -= 1;
@@ -1099,7 +1190,7 @@ export function calculateBirthChart(
     const d60Sign = getShastiamsaSign(sidLong);
     
     planets.push({
-      name: pName, symbol: PLANET_SYMBOLS[i],
+      name: pName, symbol: PLANET_SYMBOLS[i], abbr: PLANET_ABBR[pName],
       longitude: round4(tropLong), siderealLongitude: round4(sidLong),
       sign: SIGNS[signIdx], signIndex: signIdx, signSanskrit: SIGNS_SANSKRIT[signIdx],
       degreeInSign: round2(degInSign),
@@ -1128,7 +1219,7 @@ export function calculateBirthChart(
     const nakIdx = getNakshatraIndex(sidLong);
     
     planets.push({
-      name: nodeName, symbol: PLANET_SYMBOLS[idx],
+      name: nodeName, symbol: PLANET_SYMBOLS[idx], abbr: PLANET_ABBR[nodeName],
       longitude: round4(tropLong), siderealLongitude: round4(sidLong),
       sign: SIGNS[signIdx], signIndex: signIdx, signSanskrit: SIGNS_SANSKRIT[signIdx],
       degreeInSign: round2(degInSign),
@@ -1187,7 +1278,7 @@ function isLeapYear(year: number): boolean {
 }
 
 // ============================================================
-// EXPORTED TEST HELPERS — For automated testing
+// EXPORTED TEST HELPERS
 // ============================================================
 export { 
   dateToJD as _dateToJD,
