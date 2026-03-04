@@ -581,84 +581,121 @@ function renderPlanetDetail(p) {
   </div>`;
 }
 
-// === NORTH INDIAN CHART — Improved with anti-overlap and tooltips ===
+// === NORTH INDIAN CHART — Standard Diamond Layout ===
+// Layout reference: Outer square with inner diamond. Houses go COUNTER-CLOCKWISE from top.
+// H1(ASC) = top center diamond, H2 = upper-left triangle, H3 = left triangle,
+// H4 = left center diamond, H5 = lower-left triangle, H6 = bottom-left triangle,
+// H7 = bottom center diamond, H8 = bottom-right triangle, H9 = lower-right triangle,
+// H10 = right center diamond, H11 = upper-right triangle, H12 = top-right triangle.
 function renderNorthChart(planets, ascSignIdx) {
-  const size = 400;
-  const mid = size / 2;
+  const S = 420; // total SVG size
+  const P = 16;  // padding
+  const L = P;            // left edge
+  const R = S - P;        // right edge
+  const T = P;            // top edge
+  const B = S - P;        // bottom edge
+  const MX = S / 2;       // horizontal midpoint
+  const MY = S / 2;       // vertical midpoint
+
   const planetsByHouse = {};
   planets.forEach(p => { const h = p.house; if (!planetsByHouse[h]) planetsByHouse[h] = []; planetsByHouse[h].push(p); });
 
-  // House center positions in the diamond layout
+  // Centroids of each house triangle/diamond for placing sign numbers and planets
+  // Calculated from the geometric vertices of the standard North Indian chart
   const hp = [
-    { x: mid, y: 68 },       // H1
-    { x: 100, y: 68 },       // H2
-    { x: 56, y: mid/2+18 },  // H3
-    { x: 56, y: mid },       // H4
-    { x: 56, y: mid+mid/2-18 }, // H5
-    { x: 100, y: size-68 },  // H6
-    { x: mid, y: size-68 },  // H7
-    { x: size-100, y: size-68 }, // H8
-    { x: size-56, y: mid+mid/2-18 }, // H9
-    { x: size-56, y: mid },  // H10
-    { x: size-56, y: mid/2+18 }, // H11
-    { x: size-100, y: 68 },  // H12
+    { x: MX,       y: MY * 0.42 },             // H1  – top center diamond (Kendra)
+    { x: MX * 0.52, y: T + (MY - T) * 0.28 },  // H2  – upper-left triangle
+    { x: L + (MX - L) * 0.28, y: MY * 0.52 },  // H3  – left triangle (upper)
+    { x: MX * 0.42, y: MY },                    // H4  – left center diamond (Kendra)
+    { x: L + (MX - L) * 0.28, y: MY + (B - MY) * 0.48 }, // H5  – left triangle (lower)
+    { x: MX * 0.52, y: B - (MY - T) * 0.28 },  // H6  – bottom-left triangle
+    { x: MX,       y: MY + (B - MY) * 0.58 },   // H7  – bottom center diamond (Kendra)
+    { x: MX + (R - MX) * 0.48, y: B - (MY - T) * 0.28 }, // H8  – bottom-right triangle
+    { x: R - (MX - L) * 0.28, y: MY + (B - MY) * 0.48 }, // H9  – right triangle (lower)
+    { x: MX + (R - MX) * 0.58, y: MY },         // H10 – right center diamond (Kendra)
+    { x: R - (MX - L) * 0.28, y: MY * 0.52 },  // H11 – right triangle (upper)
+    { x: MX + (R - MX) * 0.48, y: T + (MY - T) * 0.28 }, // H12 – upper-right triangle
   ];
 
-  let svg = `<svg viewBox="0 0 ${size} ${size}" class="w-full h-auto" style="max-width:${size}px">`;
-  svg += `<rect width="${size}" height="${size}" fill="transparent" rx="16"/>`;
-  svg += `<rect x="10" y="10" width="${size-20}" height="${size-20}" fill="none" stroke="rgba(168,85,250,0.2)" stroke-width="1.5" rx="4"/>`;
-  svg += `<polygon points="${mid},15 ${size-15},${mid} ${mid},${size-15} 15,${mid}" fill="none" stroke="rgba(168,85,250,0.2)" stroke-width="1.5"/>`;
-  svg += `<line x1="10" y1="10" x2="${mid}" y2="${mid}" stroke="rgba(168,85,250,0.1)" stroke-width="1"/>`;
-  svg += `<line x1="${size-10}" y1="10" x2="${mid}" y2="${mid}" stroke="rgba(168,85,250,0.1)" stroke-width="1"/>`;
-  svg += `<line x1="10" y1="${size-10}" x2="${mid}" y2="${mid}" stroke="rgba(168,85,250,0.1)" stroke-width="1"/>`;
-  svg += `<line x1="${size-10}" y1="${size-10}" x2="${mid}" y2="${mid}" stroke="rgba(168,85,250,0.1)" stroke-width="1"/>`;
+  let svg = `<svg viewBox="0 0 ${S} ${S}" class="w-full h-auto" style="max-width:${S}px" xmlns="http://www.w3.org/2000/svg">`;
+  // Outer square
+  svg += `<rect x="${L}" y="${T}" width="${R-L}" height="${B-T}" fill="none" stroke="rgba(168,85,250,0.25)" stroke-width="1.5"/>`;
+  // Inner diamond (connecting midpoints of the outer square sides)
+  svg += `<polygon points="${MX},${T} ${R},${MY} ${MX},${B} ${L},${MY}" fill="none" stroke="rgba(168,85,250,0.25)" stroke-width="1.5"/>`;
+  // Diagonal lines from corners to center to create the 12 triangles
+  svg += `<line x1="${L}" y1="${T}" x2="${MX}" y2="${MY}" stroke="rgba(168,85,250,0.12)" stroke-width="1"/>`;
+  svg += `<line x1="${R}" y1="${T}" x2="${MX}" y2="${MY}" stroke="rgba(168,85,250,0.12)" stroke-width="1"/>`;
+  svg += `<line x1="${L}" y1="${B}" x2="${MX}" y2="${MY}" stroke="rgba(168,85,250,0.12)" stroke-width="1"/>`;
+  svg += `<line x1="${R}" y1="${B}" x2="${MX}" y2="${MY}" stroke="rgba(168,85,250,0.12)" stroke-width="1"/>`;
 
+  // Draw each house
   for (let h = 1; h <= 12; h++) {
     const pos = hp[h - 1];
     const signIdx = (ascSignIdx + h - 1) % 12;
-    svg += `<text x="${pos.x}" y="${pos.y - 15}" text-anchor="middle" fill="rgba(255,255,255,0.25)" font-size="10" font-weight="500">${signIdx + 1}</text>`;
-    if (h === 1) svg += `<text x="${pos.x}" y="${pos.y - 28}" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="700">ASC</text>`;
-    
+
+    // Sign number — shown small in a corner of the house
+    const signY = (h === 1 || h === 7) ? pos.y - 24 : pos.y - 18;
+    svg += `<text x="${pos.x}" y="${signY}" text-anchor="middle" fill="rgba(168,85,250,0.45)" font-size="11" font-weight="600" font-family="Space Grotesk,sans-serif">${signIdx + 1}</text>`;
+
+    // ASC label for house 1
+    if (h === 1) {
+      svg += `<text x="${MX}" y="${T + 14}" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="700" font-family="Space Grotesk,sans-serif">ASC</text>`;
+    }
+
     // Planets — use 3-letter abbreviations, spread vertically
     const housePlanets = planetsByHouse[h] || [];
-    const total = housePlanets.length;
-    const startY = pos.y - (total - 1) * 8;
+    const lineH = 13;
+    const totalHeight = housePlanets.length * lineH;
+    const startY = pos.y - totalHeight / 2 + 6;
     housePlanets.forEach((p, idx) => {
-      const yPos = startY + idx * 16;
+      const yPos = startY + idx * lineH;
       const color = PLANET_COLORS[p.name];
       const abbr = PLANET_ABBR[p.name] || p.name.substring(0, 3).toUpperCase();
-      const retMark = (p.retrograde && !['Rahu','Ketu'].includes(p.name)) ? '(R)' : '';
-      svg += `<text x="${pos.x}" y="${yPos}" text-anchor="middle" fill="${color}" font-size="10" font-weight="700" class="planet-in-chart" data-planet="${p.name}" style="cursor:pointer;letter-spacing:0.5px">${abbr}${retMark}</text>`;
-      svg += `<text x="${pos.x}" y="${yPos + 10}" text-anchor="middle" fill="rgba(255,255,255,0.18)" font-size="7">${p.degreeInSign.toFixed(0)}\u00b0</text>`;
+      const retMark = (p.retrograde && !['Rahu','Ketu'].includes(p.name)) ? '\u1D3F' : '';
+      svg += `<text x="${pos.x}" y="${yPos}" text-anchor="middle" fill="${color}" font-size="10" font-weight="700" class="planet-in-chart" data-planet="${p.name}" style="cursor:pointer" font-family="Space Grotesk,sans-serif">${abbr}${retMark}</text>`;
     });
   }
   svg += `</svg>`;
   return `<div class="ni-chart">${svg}</div>`;
 }
 
-// === SOUTH INDIAN CHART — Improved with tooltips ===
+// === SOUTH INDIAN CHART — Fixed standard layout ===
+// Signs are FIXED: Pisces(12) top-left → clockwise → Aquarius(11)
+// The 4x4 grid with center 2x2 for name/date:
+// Row 0: Pisces(12)  Aries(1)     Taurus(2)   Gemini(3)
+// Row 1: Aquarius(11) [center]     [center]    Cancer(4)
+// Row 2: Capricorn(10)[center]     [center]    Leo(5)
+// Row 3: Sagittarius(9) Scorpio(8) Libra(7)   Virgo(6)
 function renderSouthChart(planets, ascSignIdx) {
+  // signOrder maps each of the 16 grid cells (row-major) to sign index (0-based), -1 = center
   const signOrder = [11, 0, 1, 2, 10, -1, -1, 3, 9, -1, -1, 4, 8, 7, 6, 5];
   const planetsBySign = {};
   planets.forEach(p => { if (!planetsBySign[p.signIndex]) planetsBySign[p.signIndex] = []; planetsBySign[p.signIndex].push(p); });
   
   let html = '<div class="si-chart">';
+  let centerRendered = false;
   for (let i = 0; i < 16; i++) {
     const signIdx = signOrder[i];
     if (signIdx === -1) {
-      if (i === 5) html += `<div class="si-center">${currentChart.name.split(' ')[0]}<br><span class="text-xs">${currentChart.dateOfBirth}</span></div>`;
+      if (!centerRendered) {
+        html += `<div class="si-center"><div class="font-display font-bold text-sm" style="color:rgba(168,85,250,0.6)">${currentChart.name.split(' ')[0]}</div><div class="text-[10px] mt-1" style="color:rgba(255,255,255,0.25)">${currentChart.dateOfBirth}</div><div class="text-[9px]" style="color:rgba(255,255,255,0.2)">${currentChart.timeOfBirth}</div></div>`;
+        centerRendered = true;
+      }
       continue;
     }
     const isAsc = signIdx === ascSignIdx;
     const signPlanets = planetsBySign[signIdx] || [];
-    html += `<div class="si-cell ${isAsc ? 'border-purple-500/50' : ''}">`;
-    html += `<span class="sign-num">${signIdx+1}</span>`;
-    if (isAsc) html += `<span class="absolute top-0.5 right-1 text-[8px] text-purple-400 font-bold">ASC</span>`;
-    html += `<div class="flex flex-wrap justify-center gap-1">`;
+    html += `<div class="si-cell ${isAsc ? 'si-cell-asc' : ''}">`;
+    // Sign number — top-left corner, clearly visible
+    html += `<span class="si-sign-num">${signIdx + 1}</span>`;
+    // ASC label — top-right corner
+    if (isAsc) html += `<span class="si-asc-label">ASC</span>`;
+    // Planets section — centered, with clear spacing
+    html += `<div class="si-planets">`;
     signPlanets.forEach(p => {
       const abbr = PLANET_ABBR[p.name] || p.name.substring(0, 3).toUpperCase();
-      const retMark = (p.retrograde && !['Rahu','Ketu'].includes(p.name)) ? '<sup class="text-red-400" style="font-size:6px">R</sup>' : '';
-      html += `<span class="text-[9px] font-bold cursor-pointer hover:scale-125 transition-transform" style="color:${PLANET_COLORS[p.name]}" data-planet="${p.name}" title="${p.name} ${p.degreeInSign.toFixed(1)}\u00b0 ${p.sign}">${abbr}${retMark}</span>`;
+      const retMark = (p.retrograde && !['Rahu','Ketu'].includes(p.name)) ? '<sup style="font-size:5px;color:#ef4444;vertical-align:super">R</sup>' : '';
+      html += `<span class="si-planet" style="color:${PLANET_COLORS[p.name]}" data-planet="${p.name}" title="${PLANET_ABBR[p.name]} ${p.degreeInSign.toFixed(1)}\u00b0 ${p.sign} | House ${p.house} | ${p.nakshatra}">${abbr}${retMark}</span>`;
     });
     html += `</div></div>`;
   }
@@ -906,7 +943,8 @@ function renderInsightsTab() {
 }
 
 // ============================================================
-// CITY DATABASE
+// CITY DATABASE — Now uses live geocoding API (Nominatim via proxy)
+// Fallback static cities for offline/fast matching
 // ============================================================
 const CITIES = [
   { name:'Mumbai, India', lat:19.076, lng:72.8777, tz:5.5 },
@@ -915,43 +953,24 @@ const CITIES = [
   { name:'Chennai, India', lat:13.0827, lng:80.2707, tz:5.5 },
   { name:'Kolkata, India', lat:22.5726, lng:88.3639, tz:5.5 },
   { name:'Hyderabad, India', lat:17.385, lng:78.4867, tz:5.5 },
-  { name:'Pune, India', lat:18.5204, lng:73.8567, tz:5.5 },
-  { name:'Ahmedabad, India', lat:23.0225, lng:72.5714, tz:5.5 },
-  { name:'Jaipur, India', lat:26.9124, lng:75.7873, tz:5.5 },
-  { name:'Lucknow, India', lat:26.8467, lng:80.9462, tz:5.5 },
-  { name:'Surat, India', lat:21.1702, lng:72.8311, tz:5.5 },
-  { name:'Varanasi, India', lat:25.3176, lng:82.9739, tz:5.5 },
-  { name:'Chandigarh, India', lat:30.7333, lng:76.7794, tz:5.5 },
-  { name:'Patna, India', lat:25.6093, lng:85.1376, tz:5.5 },
-  { name:'Bhopal, India', lat:23.2599, lng:77.4126, tz:5.5 },
-  { name:'Indore, India', lat:22.7196, lng:75.8577, tz:5.5 },
-  { name:'Nagpur, India', lat:21.1458, lng:79.0882, tz:5.5 },
-  { name:'Coimbatore, India', lat:11.0168, lng:76.9558, tz:5.5 },
-  { name:'Kochi, India', lat:9.9312, lng:76.2673, tz:5.5 },
-  { name:'Thiruvananthapuram, India', lat:8.5241, lng:76.9366, tz:5.5 },
-  { name:'Guwahati, India', lat:26.1445, lng:91.7362, tz:5.5 },
-  { name:'Visakhapatnam, India', lat:17.6868, lng:83.2185, tz:5.5 },
   { name:'New York, USA', lat:40.7128, lng:-74.006, tz:-5 },
-  { name:'Los Angeles, USA', lat:34.0522, lng:-118.2437, tz:-8 },
-  { name:'Chicago, USA', lat:41.8781, lng:-87.6298, tz:-6 },
   { name:'London, UK', lat:51.5074, lng:-0.1278, tz:0 },
-  { name:'Dubai, UAE', lat:25.2048, lng:55.2708, tz:4 },
-  { name:'Singapore', lat:1.3521, lng:103.8198, tz:8 },
-  { name:'Sydney, Australia', lat:-33.8688, lng:151.2093, tz:11 },
-  { name:'Toronto, Canada', lat:43.6532, lng:-79.3832, tz:-5 },
-  { name:'San Francisco, USA', lat:37.7749, lng:-122.4194, tz:-8 },
-  { name:'Houston, USA', lat:29.7604, lng:-95.3698, tz:-6 },
-  { name:'Kathmandu, Nepal', lat:27.7172, lng:85.324, tz:5.75 },
-  { name:'Colombo, Sri Lanka', lat:6.9271, lng:79.8612, tz:5.5 },
-  { name:'Dhaka, Bangladesh', lat:23.8103, lng:90.4125, tz:6 },
-  { name:'Islamabad, Pakistan', lat:33.6844, lng:73.0479, tz:5 },
-  { name:'Lahore, Pakistan', lat:31.5204, lng:74.3587, tz:5 },
-  { name:'Karachi, Pakistan', lat:24.8607, lng:67.0011, tz:5 },
   { name:'Tokyo, Japan', lat:35.6762, lng:139.6503, tz:9 },
-  { name:'Berlin, Germany', lat:52.52, lng:13.405, tz:1 },
-  { name:'Paris, France', lat:48.8566, lng:2.3522, tz:1 },
-  { name:'Amsterdam, Netherlands', lat:52.3676, lng:4.9041, tz:1 }
+  { name:'Sydney, Australia', lat:-33.8688, lng:151.2093, tz:11 },
 ];
+
+// Debounce utility
+let _geocodeTimer = null;
+let _lastGeoQuery = '';
+
+async function fetchGeocodeResults(query) {
+  if (!query || query.length < 2) return [];
+  try {
+    const res = await fetch(`/api/geocode?q=${encodeURIComponent(query)}`);
+    if (!res.ok) return [];
+    return await res.json();
+  } catch { return []; }
+}
 
 // ============================================================
 // EVENT HANDLERS
@@ -985,13 +1004,57 @@ function attachEvents() {
 }
 
 function handlePlaceInput(e) {
-  const val = e.target.value.toLowerCase();
+  const val = e.target.value.trim();
   const suggestions = document.getElementById('place-suggestions');
   if (!val || val.length < 2) { suggestions.classList.add('hidden'); return; }
-  const matches = CITIES.filter(c => c.name.toLowerCase().includes(val)).slice(0, 8);
-  if (matches.length === 0) { suggestions.classList.add('hidden'); return; }
+  
+  // Clear previous timer
+  if (_geocodeTimer) clearTimeout(_geocodeTimer);
+  
+  // Quick local match first (instant)
+  const localMatches = CITIES.filter(c => c.name.toLowerCase().includes(val.toLowerCase())).slice(0, 3);
+  if (localMatches.length > 0 && val.length < 4) {
+    renderSuggestions(localMatches, suggestions, false);
+    return;
+  }
+  
+  // Show loading state
   suggestions.classList.remove('hidden');
-  suggestions.innerHTML = matches.map(c => `<div class="px-4 py-3 cursor-pointer hover:bg-purple-500/10 transition-colors text-sm border-b border-purple-500/5 last:border-0" onclick="window.__selectCity('${c.name}',${c.lat},${c.lng},${c.tz})"><i class="fas fa-map-marker-alt text-purple-400/50 mr-2"></i>${c.name}</div>`).join('');
+  suggestions.innerHTML = '<div class="px-4 py-3 text-sm text-white/30"><i class="fas fa-spinner fa-spin mr-2"></i>Searching worldwide...</div>';
+  
+  // Debounce API call (300ms)
+  _geocodeTimer = setTimeout(async () => {
+    if (val !== e.target.value.trim()) return; // user typed more
+    const apiResults = await fetchGeocodeResults(val);
+    
+    // Merge with local fallback if API returns nothing
+    let results = apiResults;
+    if (results.length === 0) {
+      results = CITIES.filter(c => c.name.toLowerCase().includes(val.toLowerCase())).slice(0, 8);
+    }
+    
+    renderSuggestions(results, suggestions, true);
+  }, 300);
+}
+
+function renderSuggestions(results, container, isApi) {
+  if (results.length === 0) {
+    container.innerHTML = '<div class="px-4 py-3 text-sm text-white/30"><i class="fas fa-map-marker-alt mr-2 text-red-400/50"></i>No places found. Try a different spelling.</div>';
+    container.classList.remove('hidden');
+    return;
+  }
+  container.classList.remove('hidden');
+  container.innerHTML = results.map(c => {
+    const displayName = c.name || c.fullName || 'Unknown';
+    const tzStr = c.tz >= 0 ? `UTC+${c.tz}` : `UTC${c.tz}`;
+    return `<div class="px-4 py-3 cursor-pointer hover:bg-purple-500/10 transition-colors text-sm border-b border-purple-500/5 last:border-0 flex items-center gap-3" onclick="window.__selectCity('${displayName.replace(/'/g, "\\'")}',${c.lat},${c.lng},${c.tz})">
+      <i class="fas fa-map-marker-alt text-purple-400/50 flex-shrink-0"></i>
+      <div class="flex-1 min-w-0">
+        <div class="truncate">${displayName}</div>
+        <div class="text-[10px] text-white/25 mt-0.5">${c.lat.toFixed(4)}\u00b0, ${c.lng.toFixed(4)}\u00b0 \u00b7 ${tzStr}</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 window.__selectCity = (name, lat, lng, tz) => {
@@ -1011,9 +1074,28 @@ async function handleFormSubmit(e) {
   let lat = document.getElementById('inp-lat').value;
   let lng = document.getElementById('inp-lng').value;
   let tz = document.getElementById('inp-tz').value;
+  
+  // If no lat/lng selected, try geocoding the typed place name
   if (!lat || !lng) {
+    // Try local match first
     const city = CITIES.find(c => c.name.toLowerCase().includes(place.toLowerCase()));
-    if (city) { lat = city.lat; lng = city.lng; tz = city.tz; } else { alert('Please select a birth place from the suggestions.'); return; }
+    if (city) {
+      lat = city.lat; lng = city.lng; tz = city.tz;
+    } else {
+      // Try API geocode
+      try {
+        const results = await fetchGeocodeResults(place);
+        if (results.length > 0) {
+          lat = results[0].lat; lng = results[0].lng; tz = results[0].tz;
+        } else {
+          alert('Could not find location. Please select a place from the suggestions dropdown.');
+          return;
+        }
+      } catch {
+        alert('Please select a birth place from the suggestions.');
+        return;
+      }
+    }
   }
   const [year, month, day] = dob.split('-');
   const [hour, minute] = time.split(':');
