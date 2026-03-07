@@ -601,20 +601,40 @@ function renderNorthChart(planets, ascSignIdx) {
   planets.forEach(p => { const h = p.house; if (!planetsByHouse[h]) planetsByHouse[h] = []; planetsByHouse[h].push(p); });
 
   // Centroids of each house triangle/diamond for placing sign numbers and planets
-  // Calculated from the geometric vertices of the standard North Indian chart
+  // Standard North Indian chart: H1(ASC) at TOP center, counterclockwise
+  // The chart diamond: outer square + inner diamond connecting midpoints
+  //
+  //         ┌─────────────────────────────────┐
+  //         │ \    H12     │      H1/ASC  /   │
+  //         │   \          │            /     │
+  //         │     \        │          /       │
+  //         │ H2    \      │        /    H12  │
+  //         │         ╲    │      ╱           │
+  //         ├───────────╲──┼────╱─────────────┤
+  //         │   H3       ╲ │  ╱       H11     │
+  //         │      H4   center    H10         │
+  //         │   H5       ╱ │  ╲       H9      │
+  //         ├───────────╱──┼────╲─────────────┤
+  //         │         ╱    │      ╲           │
+  //         │ H6    /      │        \    H8   │
+  //         │     /        │          \       │
+  //         │   /          │            \     │
+  //         │ /    H6      │      H7      \   │
+  //         └─────────────────────────────────┘
+
   const hp = [
-    { x: MX,       y: MY * 0.42 },             // H1  – top center diamond (Kendra)
-    { x: MX * 0.52, y: T + (MY - T) * 0.28 },  // H2  – upper-left triangle
-    { x: L + (MX - L) * 0.28, y: MY * 0.52 },  // H3  – left triangle (upper)
-    { x: MX * 0.42, y: MY },                    // H4  – left center diamond (Kendra)
-    { x: L + (MX - L) * 0.28, y: MY + (B - MY) * 0.48 }, // H5  – left triangle (lower)
-    { x: MX * 0.52, y: B - (MY - T) * 0.28 },  // H6  – bottom-left triangle
-    { x: MX,       y: MY + (B - MY) * 0.58 },   // H7  – bottom center diamond (Kendra)
-    { x: MX + (R - MX) * 0.48, y: B - (MY - T) * 0.28 }, // H8  – bottom-right triangle
-    { x: R - (MX - L) * 0.28, y: MY + (B - MY) * 0.48 }, // H9  – right triangle (lower)
-    { x: MX + (R - MX) * 0.58, y: MY },         // H10 – right center diamond (Kendra)
-    { x: R - (MX - L) * 0.28, y: MY * 0.52 },  // H11 – right triangle (upper)
-    { x: MX + (R - MX) * 0.48, y: T + (MY - T) * 0.28 }, // H12 – upper-right triangle
+    { x: MX,                          y: T + (MY - T) * 0.30 },   // H1  – top center diamond (ASC/Lagna)
+    { x: L + (MX - L) * 0.36,        y: T + (MY - T) * 0.30 },   // H2  – upper-left triangle
+    { x: L + (MX - L) * 0.28,        y: MY - (MY - T) * 0.28 },  // H3  – left triangle (upper)
+    { x: L + (MX - L) * 0.30,        y: MY },                     // H4  – left center diamond
+    { x: L + (MX - L) * 0.28,        y: MY + (B - MY) * 0.28 },  // H5  – left triangle (lower)
+    { x: L + (MX - L) * 0.36,        y: B - (MY - T) * 0.30 },   // H6  – bottom-left triangle
+    { x: MX,                          y: B - (MY - T) * 0.30 },   // H7  – bottom center diamond
+    { x: MX + (R - MX) * 0.64,       y: B - (MY - T) * 0.30 },   // H8  – bottom-right triangle
+    { x: R - (MX - L) * 0.28,        y: MY + (B - MY) * 0.28 },  // H9  – right triangle (lower)
+    { x: R - (MX - L) * 0.30,        y: MY },                     // H10 – right center diamond
+    { x: R - (MX - L) * 0.28,        y: MY - (MY - T) * 0.28 },  // H11 – right triangle (upper)
+    { x: MX + (R - MX) * 0.64,       y: T + (MY - T) * 0.30 },   // H12 – upper-right triangle
   ];
 
   let svg = `<svg viewBox="0 0 ${S} ${S}" class="w-full h-auto" style="max-width:${S}px" xmlns="http://www.w3.org/2000/svg">`;

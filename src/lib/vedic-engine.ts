@@ -469,9 +469,11 @@ function calculateAscendant(jd: number, latitude: number, geoLongitude: number):
   // Local Sidereal Time
   const LST = norm360(apparentGMST + geoLongitude);
   
-  // Ascendant formula (Meeus)
-  const y = -cosD(LST);
-  const x = sinD(obliquity) * tanD(latitude) + cosD(obliquity) * sinD(LST);
+  // Ascendant formula (Meeus Ch.14)
+  // ASC = atan2(cos(RAMC), -(sin(ε)*tan(φ) + cos(ε)*sin(RAMC)))
+  // where RAMC = LST, ε = obliquity, φ = latitude
+  const y = cosD(LST);
+  const x = -(sinD(obliquity) * tanD(latitude) + cosD(obliquity) * sinD(LST));
   let asc = atan2D(y, x);
   asc = norm360(asc);
   

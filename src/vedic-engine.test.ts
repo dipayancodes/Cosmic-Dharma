@@ -453,6 +453,15 @@ describe('Ascendant Calculation', () => {
     const asc2 = _calculateAscendant(jd, 40.7128, -74.006); // NYC
     expect(asc1).not.toBeCloseTo(asc2, 1);
   });
+
+  it('should give Cancer ascendant for June 15 1990 8:30 AM Mumbai (tropical ~116°)', () => {
+    // 8:30 AM IST = 3:00 UTC; Cancer rises in the East in Mumbai at this time in June
+    const jd = _dateToJD(1990, 6, 15, 3);
+    const asc = _calculateAscendant(jd, 19.076, 72.8777);
+    // Tropical Cancer = 90°-120°; expected ~116.5°
+    expect(asc).toBeGreaterThan(90);
+    expect(asc).toBeLessThan(130);
+  });
 });
 
 // ============================================================
