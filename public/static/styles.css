@@ -589,9 +589,19 @@ html:not(.dark) .skeleton {
 .ni-chart {
   position: relative;
   width: 100%;
-  max-width: 420px;
+  max-width: 440px;
   aspect-ratio: 1;
   margin: 0 auto;
+  --ni-line: rgba(168, 85, 250, 0.3);
+  --ni-line-dim: rgba(168, 85, 250, 0.18);
+  --ni-sign-color: rgba(168, 85, 250, 0.55);
+  --ni-asc-color: #a855f7;
+}
+
+.ni-chart .ni-svg {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
 .ni-chart svg text {
@@ -600,10 +610,17 @@ html:not(.dark) .skeleton {
 }
 
 /* Chart SVG light mode adjustments */
+html:not(.dark) .ni-chart {
+  --ni-line: rgba(100, 100, 180, 0.3) !important;
+  --ni-line-dim: rgba(100, 100, 180, 0.15) !important;
+  --ni-sign-color: rgba(100, 80, 180, 0.55) !important;
+  --ni-asc-color: #7c3aed !important;
+}
+
 html:not(.dark) .ni-chart svg line,
 html:not(.dark) .ni-chart svg rect,
 html:not(.dark) .ni-chart svg polygon {
-  stroke: rgba(100, 100, 180, 0.2) !important;
+  stroke: rgba(100, 100, 180, 0.25) !important;
 }
 
 /* === South Indian Chart === */

@@ -582,99 +582,142 @@ function renderPlanetDetail(p) {
 }
 
 // === NORTH INDIAN CHART — Standard Diamond Layout ===
-// Layout reference: Outer square with inner diamond. Houses go COUNTER-CLOCKWISE from top.
-// H1(ASC) = top center diamond, H2 = upper-left triangle, H3 = left triangle,
-// H4 = left center diamond, H5 = lower-left triangle, H6 = bottom-left triangle,
-// H7 = bottom center diamond, H8 = bottom-right triangle, H9 = lower-right triangle,
-// H10 = right center diamond, H11 = upper-right triangle, H12 = top-right triangle.
+// ================================================================
+// NORTH INDIAN CHART — Precise geometric layout
+// ================================================================
+// Layout: Outer square + inner diamond (connecting midpoints) + corner diagonals
+// Creates 4 diamond houses (kendras: 1,4,7,10) and 8 triangle houses
+// H1(ASC) = top center diamond, counter-clockwise: H2..H12
+//
+//      ┌──────────────┬──────────────┐
+//      │ \    H2      │    H12    /  │
+//      │   \          │        /     │
+//      │     ◆ ─ ─ ─ ─ ─ ─ ─ ◆      │
+//      │   / H1(ASC)  │        \ H10 │ (Note: H1 visible above
+//      │  H3  \       │      /  H11  │  center; H10 visible right)
+//      ├───────\──────┼────/─────────┤
+//      │  H3  / \     │  / \   H11   │
+//      │     /   ◆ H4 │ H10◆   \    │
+//      │  H5  \ /     │     \ /  H9  │
+//      ├───────/──────┼────\─────────┤
+//      │     / H7     │      \       │
+//      │   ◆ ─ ─ ─ ─ ─ ─ ─ ─ ◆      │
+//      │   \          │        /     │
+//      │ /    H6      │    H8    \   │
+//      └──────────────┴──────────────┘
+//
 function renderNorthChart(planets, ascSignIdx) {
-  const S = 420; // total SVG size
-  const P = 16;  // padding
-  const L = P;            // left edge
-  const R = S - P;        // right edge
-  const T = P;            // top edge
-  const B = S - P;        // bottom edge
-  const MX = S / 2;       // horizontal midpoint
-  const MY = S / 2;       // vertical midpoint
+  const S = 440;  // SVG size (slightly larger for breathing room)
+  const P = 20;   // padding
+  const L = P, R = S - P, T = P, B = S - P;
+  const MX = S / 2, MY = S / 2;
 
   const planetsByHouse = {};
-  planets.forEach(p => { const h = p.house; if (!planetsByHouse[h]) planetsByHouse[h] = []; planetsByHouse[h].push(p); });
+  planets.forEach(p => {
+    const h = p.house;
+    if (!planetsByHouse[h]) planetsByHouse[h] = [];
+    planetsByHouse[h].push(p);
+  });
 
-  // Centroids of each house triangle/diamond for placing sign numbers and planets
-  // Standard North Indian chart: H1(ASC) at TOP center, counterclockwise
-  // The chart diamond: outer square + inner diamond connecting midpoints
-  //
-  //         ┌─────────────────────────────────┐
-  //         │ \    H12     │      H1/ASC  /   │
-  //         │   \          │            /     │
-  //         │     \        │          /       │
-  //         │ H2    \      │        /    H12  │
-  //         │         ╲    │      ╱           │
-  //         ├───────────╲──┼────╱─────────────┤
-  //         │   H3       ╲ │  ╱       H11     │
-  //         │      H4   center    H10         │
-  //         │   H5       ╱ │  ╲       H9      │
-  //         ├───────────╱──┼────╲─────────────┤
-  //         │         ╱    │      ╲           │
-  //         │ H6    /      │        \    H8   │
-  //         │     /        │          \       │
-  //         │   /          │            \     │
-  //         │ /    H6      │      H7      \   │
-  //         └─────────────────────────────────┘
+  // Key geometric points
+  // Diamond-square intersection points (where corner diagonals meet diamond edges)
+  const half = (R - L) / 4; // quarter size = 100
+  const INT_TL = { x: L + half, y: T + half };      // (120, 120)
+  const INT_TR = { x: R - half, y: T + half };       // (320, 120)
+  const INT_BL = { x: L + half, y: B - half };       // (120, 320)
+  const INT_BR = { x: R - half, y: B - half };       // (320, 320)
 
-  const hp = [
-    { x: MX,                          y: T + (MY - T) * 0.30 },   // H1  – top center diamond (ASC/Lagna)
-    { x: L + (MX - L) * 0.36,        y: T + (MY - T) * 0.30 },   // H2  – upper-left triangle
-    { x: L + (MX - L) * 0.28,        y: MY - (MY - T) * 0.28 },  // H3  – left triangle (upper)
-    { x: L + (MX - L) * 0.30,        y: MY },                     // H4  – left center diamond
-    { x: L + (MX - L) * 0.28,        y: MY + (B - MY) * 0.28 },  // H5  – left triangle (lower)
-    { x: L + (MX - L) * 0.36,        y: B - (MY - T) * 0.30 },   // H6  – bottom-left triangle
-    { x: MX,                          y: B - (MY - T) * 0.30 },   // H7  – bottom center diamond
-    { x: MX + (R - MX) * 0.64,       y: B - (MY - T) * 0.30 },   // H8  – bottom-right triangle
-    { x: R - (MX - L) * 0.28,        y: MY + (B - MY) * 0.28 },  // H9  – right triangle (lower)
-    { x: R - (MX - L) * 0.30,        y: MY },                     // H10 – right center diamond
-    { x: R - (MX - L) * 0.28,        y: MY - (MY - T) * 0.28 },  // H11 – right triangle (upper)
-    { x: MX + (R - MX) * 0.64,       y: T + (MY - T) * 0.30 },   // H12 – upper-right triangle
+  // Precise geometric centroids for each of the 12 houses
+  // Diamond houses (kendras) = 4 vertices → centroid is average of 4 points
+  // Triangle houses = 3 vertices → centroid is average of 3 points
+  const houseCentroids = [
+    { x: MX,                                y: (T + INT_TL.y + MY + INT_TR.y) / 4 },            // H1:  top diamond (ASC)
+    { x: (L + MX + INT_TL.x) / 3,          y: (T + T + INT_TL.y) / 3 },                        // H2:  upper-left triangle
+    { x: (L + L + INT_TL.x) / 3,           y: (T + MY + INT_TL.y) / 3 },                       // H3:  left-upper triangle
+    { x: (L + INT_TL.x + MX + INT_BL.x) / 4, y: MY },                                          // H4:  left diamond
+    { x: (L + L + INT_BL.x) / 3,           y: (MY + B + INT_BL.y) / 3 },                       // H5:  lower-left triangle
+    { x: (L + MX + INT_BL.x) / 3,          y: (B + B + INT_BL.y) / 3 },                        // H6:  bottom-left triangle
+    { x: MX,                                y: (B + INT_BL.y + MY + INT_BR.y) / 4 },            // H7:  bottom diamond
+    { x: (R + MX + INT_BR.x) / 3,          y: (B + B + INT_BR.y) / 3 },                        // H8:  bottom-right triangle
+    { x: (R + R + INT_BR.x) / 3,           y: (MY + B + INT_BR.y) / 3 },                       // H9:  right-lower triangle
+    { x: (R + INT_TR.x + MX + INT_BR.x) / 4, y: MY },                                          // H10: right diamond
+    { x: (R + R + INT_TR.x) / 3,           y: (T + MY + INT_TR.y) / 3 },                       // H11: right-upper triangle
+    { x: (R + MX + INT_TR.x) / 3,          y: (T + T + INT_TR.y) / 3 },                        // H12: upper-right triangle
   ];
 
-  let svg = `<svg viewBox="0 0 ${S} ${S}" class="w-full h-auto" style="max-width:${S}px" xmlns="http://www.w3.org/2000/svg">`;
+  // Sign number positions: placed in the outer corner/edge of each house (away from center)
+  // For narrow side triangles (H3,H5,H9,H11), push sign numbers towards the outer corner
+  const signNumPos = [
+    { x: MX,     y: T + 34 },            // H1:  near top of diamond
+    { x: L + 36, y: T + 22 },            // H2:  near top-left corner
+    { x: L + 18, y: T + 50 },            // H3:  near top-left outer corner
+    { x: L + 34, y: MY - 6 },            // H4:  near left edge of diamond
+    { x: L + 18, y: B - 50 },            // H5:  near bottom-left outer corner
+    { x: L + 36, y: B - 22 },            // H6:  near bottom-left corner
+    { x: MX,     y: B - 26 },            // H7:  near bottom of diamond
+    { x: R - 36, y: B - 22 },            // H8:  near bottom-right corner
+    { x: R - 18, y: B - 50 },            // H9:  near bottom-right outer corner
+    { x: R - 34, y: MY - 6 },            // H10: near right edge of diamond
+    { x: R - 18, y: T + 50 },            // H11: near top-right outer corner
+    { x: R - 36, y: T + 22 },            // H12: near top-right corner
+  ];
+
+  // --- Build SVG ---
+  let svg = `<svg viewBox="0 0 ${S} ${S}" class="ni-svg" xmlns="http://www.w3.org/2000/svg">`;
+
+  // Background
+  svg += `<rect x="0" y="0" width="${S}" height="${S}" fill="none"/>`;
+
   // Outer square
-  svg += `<rect x="${L}" y="${T}" width="${R-L}" height="${B-T}" fill="none" stroke="rgba(168,85,250,0.25)" stroke-width="1.5"/>`;
-  // Inner diamond (connecting midpoints of the outer square sides)
-  svg += `<polygon points="${MX},${T} ${R},${MY} ${MX},${B} ${L},${MY}" fill="none" stroke="rgba(168,85,250,0.25)" stroke-width="1.5"/>`;
-  // Diagonal lines from corners to center to create the 12 triangles
-  svg += `<line x1="${L}" y1="${T}" x2="${MX}" y2="${MY}" stroke="rgba(168,85,250,0.12)" stroke-width="1"/>`;
-  svg += `<line x1="${R}" y1="${T}" x2="${MX}" y2="${MY}" stroke="rgba(168,85,250,0.12)" stroke-width="1"/>`;
-  svg += `<line x1="${L}" y1="${B}" x2="${MX}" y2="${MY}" stroke="rgba(168,85,250,0.12)" stroke-width="1"/>`;
-  svg += `<line x1="${R}" y1="${B}" x2="${MX}" y2="${MY}" stroke="rgba(168,85,250,0.12)" stroke-width="1"/>`;
+  svg += `<rect x="${L}" y="${T}" width="${R-L}" height="${B-T}" fill="none" stroke="var(--ni-line, rgba(168,85,250,0.3))" stroke-width="1.5"/>`;
 
-  // Draw each house
+  // Inner diamond
+  svg += `<polygon points="${MX},${T} ${R},${MY} ${MX},${B} ${L},${MY}" fill="none" stroke="var(--ni-line, rgba(168,85,250,0.3))" stroke-width="1.5"/>`;
+
+  // Diagonal lines from corners to center (house dividers)
+  const diags = [[L,T,MX,MY],[R,T,MX,MY],[L,B,MX,MY],[R,B,MX,MY]];
+  diags.forEach(([x1,y1,x2,y2]) => {
+    svg += `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="var(--ni-line-dim, rgba(168,85,250,0.18))" stroke-width="1"/>`;
+  });
+
+  // Draw each house content
   for (let h = 1; h <= 12; h++) {
-    const pos = hp[h - 1];
+    const centroid = houseCentroids[h - 1];
+    const snPos = signNumPos[h - 1];
     const signIdx = (ascSignIdx + h - 1) % 12;
+    const isDiamond = [1, 4, 7, 10].includes(h);
 
-    // Sign number — shown small in a corner of the house
-    const signY = (h === 1 || h === 7) ? pos.y - 24 : pos.y - 18;
-    svg += `<text x="${pos.x}" y="${signY}" text-anchor="middle" fill="rgba(168,85,250,0.45)" font-size="11" font-weight="600" font-family="Space Grotesk,sans-serif">${signIdx + 1}</text>`;
+    // Sign number — small, in outer corner of house
+    svg += `<text x="${snPos.x}" y="${snPos.y}" text-anchor="middle" dominant-baseline="central" fill="var(--ni-sign-color, rgba(168,85,250,0.5))" font-size="11" font-weight="600" font-family="'Space Grotesk',sans-serif">${signIdx + 1}</text>`;
 
     // ASC label for house 1
     if (h === 1) {
-      svg += `<text x="${MX}" y="${T + 14}" text-anchor="middle" fill="#a855f7" font-size="9" font-weight="700" font-family="Space Grotesk,sans-serif">ASC</text>`;
+      svg += `<text x="${MX}" y="${T + 14}" text-anchor="middle" fill="var(--ni-asc-color, #a855f7)" font-size="9" font-weight="700" font-family="'Space Grotesk',sans-serif" letter-spacing="1">ASC</text>`;
     }
 
-    // Planets — use 3-letter abbreviations, spread vertically
+    // Planets — centered at house centroid, vertically stacked
     const housePlanets = planetsByHouse[h] || [];
-    const lineH = 13;
-    const totalHeight = housePlanets.length * lineH;
-    const startY = pos.y - totalHeight / 2 + 6;
+    if (housePlanets.length === 0) continue;
+
+    // Adaptive sizing: reduce font/spacing when many planets in one house
+    const count = housePlanets.length;
+    const maxComfort = isDiamond ? 4 : 3;
+    const fontSize = count > maxComfort ? 9 : 10;
+    const lineH = count > maxComfort ? 11 : 13;
+
+    const totalH = count * lineH;
+    // Start Y so that the block is centered at the centroid
+    const startY = centroid.y - totalH / 2 + lineH / 2;
+
     housePlanets.forEach((p, idx) => {
       const yPos = startY + idx * lineH;
-      const color = PLANET_COLORS[p.name];
+      const color = PLANET_COLORS[p.name] || '#ccc';
       const abbr = PLANET_ABBR[p.name] || p.name.substring(0, 3).toUpperCase();
-      const retMark = (p.retrograde && !['Rahu','Ketu'].includes(p.name)) ? '\u1D3F' : '';
-      svg += `<text x="${pos.x}" y="${yPos}" text-anchor="middle" fill="${color}" font-size="10" font-weight="700" class="planet-in-chart" data-planet="${p.name}" style="cursor:pointer" font-family="Space Grotesk,sans-serif">${abbr}${retMark}</text>`;
+      const retMark = (p.retrograde && !['Rahu', 'Ketu'].includes(p.name)) ? '\u1D3F' : '';
+      svg += `<text x="${centroid.x}" y="${yPos}" text-anchor="middle" dominant-baseline="central" fill="${color}" font-size="${fontSize}" font-weight="700" class="planet-in-chart" data-planet="${p.name}" style="cursor:pointer" font-family="'Space Grotesk',sans-serif">${abbr}${retMark}</text>`;
     });
   }
+
   svg += `</svg>`;
   return `<div class="ni-chart">${svg}</div>`;
 }
