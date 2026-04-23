@@ -552,8 +552,40 @@ function getHouseNumber(planetSidLong: number, ascSignIndex: number): number {
 }
 
 // ============================================================
-// DIVISIONAL CHARTS — Mathematically precise
+// DIVISIONAL CHARTS — Complete Parashari (BPHS) Method
+// Each function takes sidereal longitude, returns sign index 0-11
 // ============================================================
+
+// D2 Hora: Sun rules odd Hora (Leo), Moon rules even Hora (Cancer)
+// First 15° of odd sign → Leo(4), second 15° → Cancer(3)
+// First 15° of even sign → Cancer(3), second 15° → Leo(4)
+function getHoraSign(sidLongitude: number): number {
+  const signIndex = getSignIndex(sidLongitude);
+  const degInSign = getDegreeInSign(sidLongitude);
+  const isOddSign = signIndex % 2 === 0; // 0-indexed: 0=Aries(odd), 1=Taurus(even)
+  const firstHalf = degInSign < 15;
+  if (isOddSign) return firstHalf ? 4 : 3; // Leo : Cancer
+  return firstHalf ? 3 : 4; // Cancer : Leo
+}
+
+// D3 Drekkana: Each sign divided into 3 parts of 10°
+// 1st decan (0-10°) → same sign; 2nd (10-20°) → 5th from it; 3rd (20-30°) → 9th from it
+function getDrekkanaSign(sidLongitude: number): number {
+  const signIndex = getSignIndex(sidLongitude);
+  const degInSign = getDegreeInSign(sidLongitude);
+  const part = Math.floor(degInSign / 10);
+  return (signIndex + part * 4) % 12;
+}
+
+// D7 Saptamsa: Each sign divided into 7 parts of 4°17'8.57"
+// Odd signs: count from same sign; Even signs: count from 7th sign
+function getSaptamsaSign(sidLongitude: number): number {
+  const signIndex = getSignIndex(sidLongitude);
+  const degInSign = getDegreeInSign(sidLongitude);
+  const part = Math.floor(degInSign / (30.0 / 7.0));
+  if (signIndex % 2 === 0) return (signIndex + part) % 12;
+  return (signIndex + 6 + part) % 12;
+}
 
 // D9 Navamsa: Each sign divided into 9 parts of 3°20'
 // Fire signs (Aries, Leo, Sag) start from Aries (0)
@@ -564,37 +596,628 @@ function getNavamsaSign(sidLongitude: number): number {
   const signIndex = getSignIndex(sidLongitude);
   const degInSign = getDegreeInSign(sidLongitude);
   const navamsaPart = Math.floor(degInSign / (30.0 / 9.0));
-  // Element group: Fire=0, Earth=1, Air=2, Water=3
   const elementGroup = signIndex % 4;
-  const startBases = [0, 9, 6, 3]; // Fire→Aries, Earth→Cap, Air→Libra, Water→Cancer
+  const startBases = [0, 9, 6, 3];
   return (startBases[elementGroup] + navamsaPart) % 12;
 }
 
-// D10 Dashamsa: Each sign divided into 10 parts of 3° each
-// Odd signs (1,3,5...) count from same sign; Even signs (2,4,6...) count from 9th sign
+// D10 Dashamsa: Each sign divided into 10 parts of 3°
+// Odd signs count from same sign; Even signs count from 9th sign
 function getDashamsaSign(sidLongitude: number): number {
   const signIndex = getSignIndex(sidLongitude);
   const degInSign = getDegreeInSign(sidLongitude);
   const part = Math.floor(degInSign / 3.0);
-  if (signIndex % 2 === 0) {
-    // Odd signs (0-indexed: Aries=0, Gemini=2, etc.)
-    return (signIndex + part) % 12;
+  if (signIndex % 2 === 0) return (signIndex + part) % 12;
+  return (signIndex + 9 + part) % 12;
+}
+
+// D12 Dwadasamsa: Each sign divided into 12 parts of 2°30'
+// Always count from same sign
+function getDwadasamsaSign(sidLongitude: number): number {
+  const signIndex = getSignIndex(sidLongitude);
+  const degInSign = getDegreeInSign(sidLongitude);
+  const part = Math.floor(degInSign / 2.5);
+  return (signIndex + part) % 12;
+}
+
+// D16 Shodasamsa: Each sign divided into 16 parts of 1°52.5'
+// Movable signs start from Aries; Fixed from Leo; Dual from Sagittarius
+function getShodasamsaSign(sidLongitude: number): number {
+  const signIndex = getSignIndex(sidLongitude);
+  const degInSign = getDegreeInSign(sidLongitude);
+  const part = Math.floor(degInSign / (30.0 / 16.0));
+  const quality = signIndex % 3; // 0=Cardinal, 1=Fixed, 2=Mutable
+  const startBases = [0, 4, 8];
+  return (startBases[quality] + part) % 12;
+}
+
+// D20 Vimsamsa: Each sign divided into 20 parts of 1°30'
+// Movable start from Aries; Fixed from Sagittarius; Dual from Leo
+function getVimsamsaSign(sidLongitude: number): number {
+  const signIndex = getSignIndex(sidLongitude);
+  const degInSign = getDegreeInSign(sidLongitude);
+  const part = Math.floor(degInSign / 1.5);
+  const quality = signIndex % 3;
+  const startBases = [0, 8, 4];
+  return (startBases[quality] + part) % 12;
+}
+
+// D24 Chaturvimsamsa: Each sign divided into 24 parts of 1°15'
+// Odd signs from Leo; Even signs from Cancer
+function getChaturvimsamsaSign(sidLongitude: number): number {
+  const signIndex = getSignIndex(sidLongitude);
+  const degInSign = getDegreeInSign(sidLongitude);
+  const part = Math.floor(degInSign / 1.25);
+  if (signIndex % 2 === 0) return (4 + part) % 12; // from Leo
+  return (3 + part) % 12; // from Cancer
+}
+
+// D27 Bhamsa/Nakshatramsa: Each sign divided into 27 parts
+// Fire signs from Aries; Earth from Cancer; Air from Libra; Water from Capricorn
+function getBhamsaSign(sidLongitude: number): number {
+  const signIndex = getSignIndex(sidLongitude);
+  const degInSign = getDegreeInSign(sidLongitude);
+  const part = Math.floor(degInSign / (30.0 / 27.0));
+  const elementGroup = signIndex % 4;
+  const startBases = [0, 3, 6, 9];
+  return (startBases[elementGroup] + part) % 12;
+}
+
+// D30 Trimsamsa: Unequal division per BPHS
+// For odd signs: Mars(5°), Saturn(5°), Jupiter(8°), Mercury(7°), Venus(5°)
+// → sign indices: Mars→Aries(0), Sat→Aqua(10), Jup→Sag(8), Mer→Gem(2), Ven→Libra(6)
+// For even signs: Venus(5°), Mercury(7°), Jupiter(8°), Saturn(5°), Mars(5°)
+// → sign indices: Ven→Taurus(1), Mer→Virgo(5), Jup→Pisces(11), Sat→Cap(9), Mars→Scorpio(7)
+function getTrimsamsaSign(sidLongitude: number): number {
+  const signIndex = getSignIndex(sidLongitude);
+  const degInSign = getDegreeInSign(sidLongitude);
+  const isOddSign = signIndex % 2 === 0;
+  if (isOddSign) {
+    if (degInSign < 5) return 0;       // Aries (Mars)
+    if (degInSign < 10) return 10;     // Aquarius (Saturn)
+    if (degInSign < 18) return 8;      // Sagittarius (Jupiter)
+    if (degInSign < 25) return 2;      // Gemini (Mercury)
+    return 6;                           // Libra (Venus)
   } else {
-    // Even signs: count from 9th
-    return (signIndex + 9 + part) % 12;
+    if (degInSign < 5) return 1;       // Taurus (Venus)
+    if (degInSign < 12) return 5;      // Virgo (Mercury)
+    if (degInSign < 20) return 11;     // Pisces (Jupiter)
+    if (degInSign < 25) return 9;      // Capricorn (Saturn)
+    return 7;                           // Scorpio (Mars)
   }
 }
 
-// D60 Shastiamsa: Each sign divided into 60 parts of 0.5° each
+// D40 Khavedamsa: Each sign divided into 40 parts of 0°45'
+// Odd signs from Aries; Even signs from Libra
+function getKhavedamsaSign(sidLongitude: number): number {
+  const signIndex = getSignIndex(sidLongitude);
+  const degInSign = getDegreeInSign(sidLongitude);
+  const part = Math.floor(degInSign / 0.75);
+  if (signIndex % 2 === 0) return part % 12;
+  return (6 + part) % 12;
+}
+
+// D45 Akshavedamsa: Each sign divided into 45 parts of 0°40'
+// Movable from Aries; Fixed from Leo; Dual from Sagittarius
+function getAkshavedamsaSign(sidLongitude: number): number {
+  const signIndex = getSignIndex(sidLongitude);
+  const degInSign = getDegreeInSign(sidLongitude);
+  const part = Math.floor(degInSign / (30.0 / 45.0));
+  const quality = signIndex % 3;
+  const startBases = [0, 4, 8];
+  return (startBases[quality] + part) % 12;
+}
+
+// D60 Shastiamsa: Each sign divided into 60 parts of 0°30'
+// Odd signs start from same sign; Even signs from 7th sign
 function getShastiamsaSign(sidLongitude: number): number {
   const signIndex = getSignIndex(sidLongitude);
   const degInSign = getDegreeInSign(sidLongitude);
   const part = Math.floor(degInSign / 0.5);
-  if (signIndex % 2 === 0) {
-    return (signIndex + part) % 12;
-  } else {
-    return (signIndex + 6 + part) % 12;
+  if (signIndex % 2 === 0) return (signIndex + part) % 12;
+  return (signIndex + 6 + part) % 12;
+}
+
+// Generic divisional chart sign calculator
+function getDivisionalSign(sidLongitude: number, division: string): number {
+  switch (division) {
+    case 'd1': return getSignIndex(sidLongitude);
+    case 'd2': return getHoraSign(sidLongitude);
+    case 'd3': return getDrekkanaSign(sidLongitude);
+    case 'd7': return getSaptamsaSign(sidLongitude);
+    case 'd9': return getNavamsaSign(sidLongitude);
+    case 'd10': return getDashamsaSign(sidLongitude);
+    case 'd12': return getDwadasamsaSign(sidLongitude);
+    case 'd16': return getShodasamsaSign(sidLongitude);
+    case 'd20': return getVimsamsaSign(sidLongitude);
+    case 'd24': return getChaturvimsamsaSign(sidLongitude);
+    case 'd27': return getBhamsaSign(sidLongitude);
+    case 'd30': return getTrimsamsaSign(sidLongitude);
+    case 'd40': return getKhavedamsaSign(sidLongitude);
+    case 'd45': return getAkshavedamsaSign(sidLongitude);
+    case 'd60': return getShastiamsaSign(sidLongitude);
+    default: return getSignIndex(sidLongitude);
   }
+}
+
+// ============================================================
+// ARUDHA PADAS — Jaimini System
+// A(n) = Sign that is as far from house-n lord as house-n lord is from house n
+// If result is same house or 7th from it, take 10th from it instead
+// ============================================================
+function calculateArudhaPadas(ascSignIdx: number, planets: PlanetData[]): Record<string, { sign: string; signIndex: number }> {
+  const result: Record<string, { sign: string; signIndex: number }> = {};
+  const arudhaNames: Record<number, string> = {
+    1: 'AL', 2: 'A2', 3: 'A3', 4: 'A4', 5: 'A5', 6: 'A6',
+    7: 'A7', 8: 'A8', 9: 'A9', 10: 'A10', 11: 'A11', 12: 'UL'
+  };
+
+  for (let h = 1; h <= 12; h++) {
+    const houseSign = (ascSignIdx + h - 1) % 12;
+    const lord = SIGN_LORDS[houseSign];
+
+    // Rahu co-lords Aquarius(10), Ketu co-lords Scorpio(7) — use main lords for simplicity
+    const lordPlanet = planets.find(p => p.name === lord);
+    if (!lordPlanet) continue;
+
+    const lordSign = lordPlanet.signIndex;
+    // Distance from house sign to lord's sign
+    const dist = ((lordSign - houseSign) + 12) % 12;
+    // Arudha = lord's sign + same distance forward
+    let arudhaSign = (lordSign + dist) % 12;
+
+    // Exception: if arudha falls in same house or 7th from it
+    const arudhaHouse = ((arudhaSign - ascSignIdx) + 12) % 12 + 1;
+    if (arudhaHouse === h || arudhaHouse === ((h + 6 - 1) % 12 + 1)) {
+      arudhaSign = (arudhaSign + 9) % 12; // take 10th from arudha
+    }
+
+    result[arudhaNames[h]] = { sign: SIGNS[arudhaSign], signIndex: arudhaSign };
+  }
+
+  return result;
+}
+
+// ============================================================
+// SPECIAL LAGNAS — Hora Lagna, Ghati Lagna, Bhava Lagna, Varnada Lagna
+// ============================================================
+function calculateSpecialLagnas(jd: number, latitude: number, geoLongitude: number, timezone: number,
+  hour: number, minute: number, ayanamsha: number, ascSidereal: number) {
+  
+  // Sunrise approximation (6:00 AM local solar time adjusted for longitude)
+  const solarNoon = 12 - geoLongitude / 15; // approximate solar noon in UTC hours
+  const sunriseUTC = solarNoon - 6; // very rough sunrise ~6h before noon
+
+  const localTimeDecimal = hour + minute / 60.0;
+  const utcTime = localTimeDecimal - timezone;
+  const istGhati = (utcTime - sunriseUTC + 24) % 24; // hours since sunrise in UTC
+
+  // Hora Lagna: Sun traverses one sign in ~2.5 hours
+  // HL moves 1 sign every ~2.5 hours from sunrise
+  const horaLagnaOffset = Math.floor(istGhati / 2.5);
+  const ascSignIdx = getSignIndex(ascSidereal);
+  const horaLagnaSign = (ascSignIdx + horaLagnaOffset) % 12;
+
+  // Ghati Lagna: GL moves 1 sign every ~0.8333 hours (50 min) from sunrise
+  // In one day (24h), GL traverses approximately 28.8 signs
+  const ghatiLagnaOffset = Math.floor(istGhati / (24.0 / 30.0)); // 30 signs per day roughly
+  const ghatiLagnaSign = (ascSignIdx + ghatiLagnaOffset) % 12;
+
+  // Bhava Lagna: BL moves at rate of 1 sign per ~2 hours, roughly
+  // It's the longitude of the Sun + elapsed ghatis * specific rate
+  const bhavaLagnaOffset = Math.floor(istGhati / 2.0);
+  const bhavaLagnaSign = (ascSignIdx + bhavaLagnaOffset) % 12;
+
+  // Varnada Lagna: Complex Jaimini calculation
+  // VL for odd ascendant: count from Aries to Lagna + count from Pisces backward to Hora Lagna
+  // For simplicity: approximate based on Lagna and HL
+  const isOddAsc = ascSignIdx % 2 === 0; // 0-indexed odd signs
+  let varnadaSign: number;
+  if (isOddAsc) {
+    const fwd = ascSignIdx; // Aries to Lagna
+    const bwd = (11 - horaLagnaSign + 12) % 12; // Pisces backward to HL
+    varnadaSign = (fwd + bwd) % 12;
+  } else {
+    const bwd1 = (11 - ascSignIdx + 12) % 12;
+    const fwd1 = horaLagnaSign;
+    varnadaSign = (11 - (bwd1 + fwd1) % 12 + 12) % 12;
+  }
+
+  return {
+    horaLagna: { sign: SIGNS[horaLagnaSign], signIndex: horaLagnaSign, abbr: 'HL' },
+    ghatiLagna: { sign: SIGNS[ghatiLagnaSign], signIndex: ghatiLagnaSign, abbr: 'GL' },
+    bhavaLagna: { sign: SIGNS[bhavaLagnaSign], signIndex: bhavaLagnaSign, abbr: 'BL' },
+    varnadaLagna: { sign: SIGNS[varnadaSign], signIndex: varnadaSign, abbr: 'VL' }
+  };
+}
+
+// ============================================================
+// ASHTAKAVARGA — Bindu-based strength system
+// Each planet and lagna contribute bindus (points) in each sign
+// Based on transit positions relative to natal positions
+// ============================================================
+function calculateAshtakavarga(planets: PlanetData[], ascSignIdx: number) {
+  // Benefic positions for each planet (from Sun, Moon, Mars, Mer, Jup, Ven, Sat, Asc)
+  // These are the houses (1-indexed) where a planet gets bindus
+  const BAV_RULES: Record<string, number[][]> = {
+    Sun: [
+      [1,2,4,7,8,9,10,11],   // from Sun
+      [3,6,10,11],             // from Moon
+      [1,2,4,7,8,9,10,11],   // from Mars
+      [3,5,6,9,10,11,12],     // from Mercury
+      [5,6,9,11],             // from Jupiter
+      [6,7,12],                // from Venus
+      [1,2,4,7,8,9,10,11],   // from Saturn
+      [3,4,6,10,11,12]        // from Ascendant
+    ],
+    Moon: [
+      [3,6,7,8,10,11],       // from Sun
+      [1,3,6,7,10,11],        // from Moon
+      [2,3,5,6,9,10,11],     // from Mars
+      [1,3,4,5,7,8,10,11],   // from Mercury
+      [1,4,7,8,10,11,12],    // from Jupiter
+      [3,4,5,7,9,10,11],     // from Venus
+      [3,5,6,11],             // from Saturn
+      [3,6,10,11]             // from Ascendant
+    ],
+    Mars: [
+      [3,5,6,10,11],         // from Sun
+      [3,6,11],               // from Moon
+      [1,2,4,7,8,10,11],     // from Mars
+      [3,5,6,11],             // from Mercury
+      [6,10,11,12],           // from Jupiter
+      [6,8,11,12],            // from Venus
+      [1,4,7,8,9,10,11],     // from Saturn
+      [1,3,6,10,11]           // from Ascendant
+    ],
+    Mercury: [
+      [5,6,9,11,12],         // from Sun
+      [2,4,6,8,10,11],       // from Moon
+      [1,2,4,7,8,9,10,11],   // from Mars
+      [1,3,5,6,9,10,11,12],  // from Mercury
+      [6,8,11,12],            // from Jupiter
+      [1,2,3,4,5,8,9,11],    // from Venus
+      [1,2,4,7,8,9,10,11],   // from Saturn
+      [1,2,4,6,8,10,11]      // from Ascendant
+    ],
+    Jupiter: [
+      [1,2,3,4,7,8,9,10,11],// from Sun
+      [2,5,7,9,11],           // from Moon
+      [1,2,4,7,8,10,11],     // from Mars
+      [1,2,4,5,6,9,10,11],   // from Mercury
+      [1,2,3,4,7,8,10,11],   // from Jupiter
+      [2,5,6,9,10,11],       // from Venus
+      [3,5,6,12],             // from Saturn
+      [1,2,4,5,6,7,9,10,11] // from Ascendant
+    ],
+    Venus: [
+      [8,11,12],              // from Sun
+      [1,2,3,4,5,8,9,11,12], // from Moon
+      [3,5,6,9,11,12],       // from Mars
+      [3,5,6,9,11],           // from Mercury
+      [5,8,9,10,11],          // from Jupiter
+      [1,2,3,4,5,8,9,10,11], // from Venus
+      [3,4,5,8,9,10,11],     // from Saturn
+      [1,2,3,4,5,8,9,11]     // from Ascendant
+    ],
+    Saturn: [
+      [1,2,4,7,8,10,11],     // from Sun
+      [3,6,11],               // from Moon
+      [3,5,6,10,11,12],      // from Mars
+      [6,8,9,10,11,12],      // from Mercury
+      [5,6,11,12],            // from Jupiter
+      [6,11,12],              // from Venus
+      [3,5,6,11],             // from Saturn
+      [1,3,4,6,10,11]        // from Ascendant
+    ]
+  };
+
+  const contributorSigns = ['Sun','Moon','Mars','Mercury','Jupiter','Venus','Saturn'].map(n => {
+    const p = planets.find(pp => pp.name === n);
+    return p ? p.signIndex : 0;
+  });
+  contributorSigns.push(ascSignIdx); // Ascendant as 8th contributor
+
+  const planetBAV: Record<string, number[]> = {};
+  const SAV: number[] = new Array(12).fill(0);
+
+  for (const planet of ['Sun','Moon','Mars','Mercury','Jupiter','Venus','Saturn']) {
+    const bav = new Array(12).fill(0);
+    const rules = BAV_RULES[planet];
+    
+    for (let c = 0; c < 8; c++) {
+      const contribSign = contributorSigns[c];
+      for (const houseNum of rules[c]) {
+        const targetSign = (contribSign + houseNum - 1) % 12;
+        bav[targetSign]++;
+      }
+    }
+    
+    planetBAV[planet] = bav;
+    for (let s = 0; s < 12; s++) SAV[s] += bav[s];
+  }
+
+  // Prastara (sign-wise total) and strength analysis
+  const signStrength = SAV.map((total, idx) => ({
+    sign: SIGNS[idx],
+    signIndex: idx,
+    total,
+    strength: total >= 30 ? 'Strong' : total >= 25 ? 'Moderate' : 'Weak'
+  }));
+
+  return { planetBAV, SAV, signStrength };
+}
+
+// ============================================================
+// YOGA DETECTION — Classical Vedic Yogas
+// ============================================================
+function detectYogas(planets: PlanetData[], ascSignIdx: number) {
+  const yogas: Array<{
+    name: string; type: string; present: boolean;
+    planets: string[]; description: string;
+  }> = [];
+
+  const findP = (n: string) => planets.find(p => p.name === n)!;
+  const sun = findP('Sun'), moon = findP('Moon'), mars = findP('Mars');
+  const mercury = findP('Mercury'), jupiter = findP('Jupiter');
+  const venus = findP('Venus'), saturn = findP('Saturn');
+  const rahu = findP('Rahu'), ketu = findP('Ketu');
+
+  // Helper: check if planet is in kendra (1,4,7,10)
+  const inKendra = (p: PlanetData) => [1,4,7,10].includes(p.house);
+  const inTrikona = (p: PlanetData) => [1,5,9].includes(p.house);
+  const kendraLords = [1,4,7,10].map(h => SIGN_LORDS[(ascSignIdx + h - 1) % 12]);
+  const trikonaLords = [1,5,9].map(h => SIGN_LORDS[(ascSignIdx + h - 1) % 12]);
+
+  // 1. Pancha Mahapurusha Yogas (Mars, Mercury, Jupiter, Venus, Saturn in own/exalted sign in kendra)
+  const mahapurushaNames: Record<string, string> = {
+    Mars: 'Ruchaka', Mercury: 'Bhadra', Jupiter: 'Hamsa', Venus: 'Malavya', Saturn: 'Sasa'
+  };
+  for (const [pName, yName] of Object.entries(mahapurushaNames)) {
+    const p = findP(pName);
+    const strong = p.dignity === 'Exalted' || p.dignity === 'Own Sign' || p.dignity === 'Moolatrikona';
+    const present = strong && inKendra(p);
+    yogas.push({
+      name: `${yName} Yoga`, type: 'Pancha Mahapurusha', present,
+      planets: [pName],
+      description: present
+        ? `${pName} in ${p.sign} (${p.dignity}) in kendra (H${p.house}) forms ${yName} Yoga — ${getYogaEffect(yName)}`
+        : `${pName} is not in own/exalted sign in a kendra house.`
+    });
+  }
+
+  // 2. Gajakesari Yoga: Jupiter in kendra from Moon
+  const jupFromMoon = ((jupiter.signIndex - moon.signIndex) + 12) % 12;
+  const gajakesari = [0, 3, 6, 9].includes(jupFromMoon);
+  yogas.push({
+    name: 'Gajakesari Yoga', type: 'Wealth & Wisdom', present: gajakesari,
+    planets: ['Jupiter', 'Moon'],
+    description: gajakesari
+      ? 'Jupiter is in a kendra from Moon, bestowing wisdom, wealth, fame, and lasting reputation.'
+      : 'Jupiter is not in a kendra from Moon.'
+  });
+
+  // 3. Raja Yogas: Kendra lord + Trikona lord conjunction or mutual aspect
+  const rajaYogaCombos: string[][] = [];
+  for (const kl of kendraLords) {
+    for (const tl of trikonaLords) {
+      if (kl !== tl) {
+        const kp = findP(kl), tp = findP(tl);
+        if (kp && tp && kp.signIndex === tp.signIndex) {
+          rajaYogaCombos.push([kl, tl]);
+        }
+      }
+    }
+  }
+  yogas.push({
+    name: 'Raja Yoga', type: 'Power & Authority', present: rajaYogaCombos.length > 0,
+    planets: rajaYogaCombos.flat(),
+    description: rajaYogaCombos.length > 0
+      ? `Kendra-Trikona lord conjunction: ${rajaYogaCombos.map(c => c.join('+')).join(', ')}. Confers power, status, and leadership.`
+      : 'No kendra-trikona lord conjunction found.'
+  });
+
+  // 4. Dhana Yoga: 2nd/11th lord connected to 1st/5th/9th lord
+  const lord2 = SIGN_LORDS[(ascSignIdx + 1) % 12];
+  const lord11 = SIGN_LORDS[(ascSignIdx + 10) % 12];
+  const dhanaLords = [lord2, lord11];
+  let dhanaPresent = false;
+  const dhanaPlanets: string[] = [];
+  for (const dl of dhanaLords) {
+    for (const tl of trikonaLords) {
+      const dp = findP(dl), tp = findP(tl);
+      if (dp && tp && dl !== tl && dp.signIndex === tp.signIndex) {
+        dhanaPresent = true;
+        dhanaPlanets.push(dl, tl);
+      }
+    }
+  }
+  yogas.push({
+    name: 'Dhana Yoga', type: 'Wealth', present: dhanaPresent,
+    planets: [...new Set(dhanaPlanets)],
+    description: dhanaPresent
+      ? `Wealth lords conjoin trikona lords: ${[...new Set(dhanaPlanets)].join(', ')}. Indicates financial prosperity.`
+      : 'No conjunction of wealth lords with trikona lords.'
+  });
+
+  // 5. Budhaditya Yoga: Sun + Mercury conjunction
+  const budhaditya = sun.signIndex === mercury.signIndex;
+  yogas.push({
+    name: 'Budhaditya Yoga', type: 'Intelligence', present: budhaditya,
+    planets: ['Sun', 'Mercury'],
+    description: budhaditya
+      ? `Sun and Mercury conjoin in ${sun.sign}, enhancing intellect, communication skills, and analytical ability.`
+      : 'Sun and Mercury are not in the same sign.'
+  });
+
+  // 6. Chandra-Mangala Yoga: Moon + Mars conjunction
+  const chandraMangala = moon.signIndex === mars.signIndex;
+  yogas.push({
+    name: 'Chandra-Mangala Yoga', type: 'Wealth & Courage', present: chandraMangala,
+    planets: ['Moon', 'Mars'],
+    description: chandraMangala
+      ? 'Moon and Mars conjunction creates earning ability through courage and enterprise.'
+      : 'Moon and Mars are not conjunct.'
+  });
+
+  // 7. Amala Yoga: Natural benefic in 10th from Lagna or Moon
+  const tenthSign = (ascSignIdx + 9) % 12;
+  const benefics = [jupiter, venus, mercury];
+  const amala = benefics.some(b => b.signIndex === tenthSign);
+  yogas.push({
+    name: 'Amala Yoga', type: 'Virtue & Fame', present: amala,
+    planets: benefics.filter(b => b.signIndex === tenthSign).map(b => b.name),
+    description: amala
+      ? 'A natural benefic in the 10th house creates fame through virtuous deeds and good reputation.'
+      : 'No natural benefic occupies the 10th house.'
+  });
+
+  // 8. Viparita Raja Yoga: 6th/8th/12th lords in 6th/8th/12th houses
+  const dusthanaHouses = [6, 8, 12];
+  const dusthanaLords = dusthanaHouses.map(h => SIGN_LORDS[(ascSignIdx + h - 1) % 12]);
+  const viparitaPlanets = dusthanaLords.filter(dl => {
+    const p = findP(dl);
+    return p && dusthanaHouses.includes(p.house);
+  });
+  yogas.push({
+    name: 'Viparita Raja Yoga', type: 'Fortune from Adversity', present: viparitaPlanets.length > 0,
+    planets: viparitaPlanets,
+    description: viparitaPlanets.length > 0
+      ? `Dusthana lords (${viparitaPlanets.join(', ')}) placed in dusthana houses. Gains through overcoming obstacles.`
+      : 'No dusthana lords in dusthana houses.'
+  });
+
+  // 9. Neechabhanga Raja Yoga: Debilitated planet with cancellation
+  const debilPlanets = planets.filter(p => p.dignity === 'Debilitated' && p.name !== 'Rahu' && p.name !== 'Ketu');
+  const neechabhanga = debilPlanets.filter(dp => {
+    const debSign = dp.signIndex;
+    const debLord = SIGN_LORDS[debSign];
+    const exaltSign = EXALTATION[dp.name]?.[0];
+    const exaltLord = exaltSign !== undefined ? SIGN_LORDS[exaltSign] : null;
+    // Cancellation: lord of debilitation sign in kendra from Moon or Lagna
+    const lordP = findP(debLord);
+    if (lordP && inKendra(lordP)) return true;
+    // Or exaltation lord in kendra
+    if (exaltLord) {
+      const elP = findP(exaltLord);
+      if (elP && inKendra(elP)) return true;
+    }
+    return false;
+  });
+  yogas.push({
+    name: 'Neechabhanga Raja Yoga', type: 'Cancellation of Debilitation', present: neechabhanga.length > 0,
+    planets: neechabhanga.map(p => p.name),
+    description: neechabhanga.length > 0
+      ? `Debilitation of ${neechabhanga.map(p => p.name).join(', ')} is cancelled, turning weakness into exceptional strength.`
+      : 'No debilitated planets with cancellation conditions.'
+  });
+
+  // 10. Saraswati Yoga: Jupiter, Venus, Mercury in kendra/trikona/2nd
+  const saraswatiHouses = [1,2,4,5,7,9,10];
+  const saraswati = [jupiter, venus, mercury].every(p => saraswatiHouses.includes(p.house));
+  yogas.push({
+    name: 'Saraswati Yoga', type: 'Knowledge & Arts', present: saraswati,
+    planets: ['Jupiter', 'Venus', 'Mercury'],
+    description: saraswati
+      ? 'Jupiter, Venus, and Mercury all in auspicious houses — bestows learning, eloquence, and mastery of arts.'
+      : 'Jupiter, Venus, Mercury are not all in kendra/trikona/2nd houses.'
+  });
+
+  // 11. Kemadruma Yoga (inauspicious): No planet in 2nd or 12th from Moon
+  const moonSign = moon.signIndex;
+  const secondFromMoon = (moonSign + 1) % 12;
+  const twelfthFromMoon = (moonSign + 11) % 12;
+  const kemadruma = !planets.some(p => 
+    !['Moon','Rahu','Ketu'].includes(p.name) && 
+    (p.signIndex === secondFromMoon || p.signIndex === twelfthFromMoon)
+  );
+  yogas.push({
+    name: 'Kemadruma Yoga', type: 'Challenge', present: kemadruma,
+    planets: ['Moon'],
+    description: kemadruma
+      ? 'No planets flank the Moon (2nd/12th from it). May indicate periods of struggle, but develops self-reliance.'
+      : 'Moon is supported by planets in adjacent signs. Kemadruma is not present.'
+  });
+
+  // 12. Adhi Yoga: Benefics in 6th, 7th, 8th from Moon
+  const adhiHouses = [6, 7, 8].map(h => (moonSign + h - 1) % 12);
+  const adhiBenefics = [jupiter, venus, mercury].filter(b => adhiHouses.includes(b.signIndex));
+  yogas.push({
+    name: 'Adhi Yoga', type: 'Leadership', present: adhiBenefics.length >= 2,
+    planets: adhiBenefics.map(b => b.name),
+    description: adhiBenefics.length >= 2
+      ? `${adhiBenefics.map(b => b.name).join(', ')} in 6th/7th/8th from Moon. Confers commanding position and leadership.`
+      : 'Not enough benefics in 6th/7th/8th from Moon for Adhi Yoga.'
+  });
+
+  return yogas;
+}
+
+function getYogaEffect(name: string): string {
+  const effects: Record<string, string> = {
+    Ruchaka: 'physical strength, courage, military prowess, and commanding presence.',
+    Bhadra: 'sharp intellect, eloquence, business acumen, and logical thinking.',
+    Hamsa: 'wisdom, spiritual inclination, teaching ability, and righteous conduct.',
+    Malavya: 'beauty, artistic talent, luxury, refined taste, and romantic fulfillment.',
+    Sasa: 'authority, disciplined leadership, political power, and organizational skill.'
+  };
+  return effects[name] || 'special planetary influence.';
+}
+
+// ============================================================
+// SHADBALA — Six-fold Planetary Strength (simplified)
+// ============================================================
+function calculateShadbala(planets: PlanetData[], ascSignIdx: number) {
+  const result: Record<string, { total: number; sthana: number; dig: number; kala: number; naisargika: number; rank: string }> = {};
+
+  // Naisargika (natural) strength — fixed values (in virupas, out of 60)
+  const naisargika: Record<string, number> = {
+    Sun: 60, Moon: 51.43, Mars: 17.14, Mercury: 25.71, Jupiter: 34.28, Venus: 42.86, Saturn: 8.57
+  };
+
+  // Dig Bala: directional strength — planet in specific house gets max dig bala
+  // Jupiter/Mercury strong in 1st (East), Sun/Mars in 10th (South), Moon/Venus in 4th (North), Saturn in 7th (West)
+  const digBalaHouse: Record<string, number> = {
+    Jupiter: 1, Mercury: 1, Sun: 10, Mars: 10, Moon: 4, Venus: 4, Saturn: 7
+  };
+
+  for (const p of planets) {
+    if (p.name === 'Rahu' || p.name === 'Ketu') continue;
+
+    // Sthana Bala (Positional Strength) — based on dignity
+    let sthana = 30; // base
+    if (p.dignity === 'Exalted') sthana = 60;
+    else if (p.dignity === 'Moolatrikona') sthana = 52;
+    else if (p.dignity === 'Own Sign') sthana = 45;
+    else if (p.dignity === "Friend's Sign") sthana = 35;
+    else if (p.dignity === 'Neutral') sthana = 25;
+    else if (p.dignity === "Enemy's Sign") sthana = 15;
+    else if (p.dignity === 'Debilitated') sthana = 5;
+
+    // Dig Bala — distance from strongest house
+    const bestHouse = digBalaHouse[p.name] || 1;
+    const dist = Math.abs(p.house - bestHouse);
+    const houseDist = Math.min(dist, 12 - dist);
+    const dig = Math.max(5, 60 - houseDist * 10);
+
+    // Kala Bala (temporal) — simplified: day planets strong in day, night in night
+    const dayPlanets = ['Sun', 'Jupiter', 'Venus'];
+    const kala = dayPlanets.includes(p.name) ? 40 : 35;
+
+    const nat = naisargika[p.name] || 20;
+    const total = Math.round((sthana + dig + kala + nat) / 4);
+
+    let rank = 'Average';
+    if (total >= 45) rank = 'Very Strong';
+    else if (total >= 38) rank = 'Strong';
+    else if (total >= 30) rank = 'Average';
+    else if (total >= 22) rank = 'Weak';
+    else rank = 'Very Weak';
+
+    result[p.name] = { total, sthana, dig, kala, naisargika: nat, rank };
+  }
+
+  return result;
 }
 
 // ============================================================
@@ -1085,6 +1708,16 @@ export interface PlanetData {
   shashtiamsaSign: string; shashtiamsaSignIndex: number;
 }
 
+export interface DivisionalChartEntry {
+  planet: string; sign: string; signIndex: number;
+}
+
+export interface DivisionalChartData {
+  planets: DivisionalChartEntry[];
+  ascendantSignIndex: number; // The ascendant for THIS specific divisional chart
+  ascendantSign: string;
+}
+
 export interface BirthChart {
   name: string; dateOfBirth: string; timeOfBirth: string;
   placeOfBirth: string; latitude: number; longitude: number; timezone: number;
@@ -1100,12 +1733,17 @@ export interface BirthChart {
   sadeSati: ReturnType<typeof analyzeSadeSati>;
   transits: ReturnType<typeof getCurrentTransits>;
   insights: ReturnType<typeof generateInsights>;
-  divisionalCharts: {
-    d1: Array<{planet: string; sign: string; signIndex: number}>;
-    d9: Array<{planet: string; sign: string; signIndex: number}>;
-    d10: Array<{planet: string; sign: string; signIndex: number}>;
-    d60: Array<{planet: string; sign: string; signIndex: number}>;
+  divisionalCharts: Record<string, DivisionalChartData>;
+  arudhaPadas: Record<string, { sign: string; signIndex: number }>;
+  specialLagnas: {
+    horaLagna: { sign: string; signIndex: number; abbr: string };
+    ghatiLagna: { sign: string; signIndex: number; abbr: string };
+    bhavaLagna: { sign: string; signIndex: number; abbr: string };
+    varnadaLagna: { sign: string; signIndex: number; abbr: string };
   };
+  shadbala: Record<string, { total: number; sthana: number; dig: number; kala: number; naisargika: number; rank: string }>;
+  ashtakavarga: { planetBAV: Record<string, number[]>; SAV: number[]; signStrength: Array<{sign: string; signIndex: number; total: number; strength: string}> };
+  yogas: Array<{ name: string; type: string; present: boolean; planets: string[]; description: string }>;
 }
 
 export function calculateBirthChart(
@@ -1244,6 +1882,39 @@ export function calculateBirthChart(
     (nowDate.getHours() + nowDate.getMinutes() / 60) / 24);
   const nowAyanamsha = getLahiriAyanamsha(nowJD);
   
+  // --- Build all divisional charts with their own ascendants ---
+  const ALL_DIVISIONS = ['d1','d2','d3','d7','d9','d10','d12','d16','d20','d24','d27','d30','d40','d45','d60'];
+  const divisionalCharts: Record<string, DivisionalChartData> = {};
+  
+  for (const div of ALL_DIVISIONS) {
+    // Compute divisional ascendant from the sidereal ascendant longitude
+    const divAscSignIdx = div === 'd1' ? ascSignIdx : getDivisionalSign(ascSidereal, div);
+    const divPlanets = planets.map(p => {
+      const divSign = getDivisionalSign(p.siderealLongitude, div);
+      return { planet: p.name, sign: SIGNS[divSign], signIndex: divSign };
+    });
+    divisionalCharts[div] = {
+      planets: divPlanets,
+      ascendantSignIndex: divAscSignIdx,
+      ascendantSign: SIGNS[divAscSignIdx]
+    };
+  }
+
+  // --- Arudha Padas ---
+  const arudhaPadas = calculateArudhaPadas(ascSignIdx, planets);
+
+  // --- Special Lagnas ---
+  const specialLagnas = calculateSpecialLagnas(jd, latitude, geoLongitude, timezone, hour, minute, ayanamsha, ascSidereal);
+
+  // --- Shadbala ---
+  const shadbala = calculateShadbala(planets, ascSignIdx);
+
+  // --- Ashtakavarga ---
+  const ashtakavarga = calculateAshtakavarga(planets, ascSignIdx);
+
+  // --- Yogas ---
+  const yogas = detectYogas(planets, ascSignIdx);
+
   return {
     name,
     dateOfBirth: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
@@ -1256,12 +1927,12 @@ export function calculateBirthChart(
     sadeSati: analyzeSadeSati(moonP.signIndex),
     transits: getCurrentTransits(nowJD, nowAyanamsha),
     insights: generateInsights(planets, ascSignIdx, moonP.signIndex),
-    divisionalCharts: {
-      d1: planets.map(p => ({ planet: p.name, sign: p.sign, signIndex: p.signIndex })),
-      d9: planets.map(p => ({ planet: p.name, sign: p.navamsaSign, signIndex: p.navamsaSignIndex })),
-      d10: planets.map(p => ({ planet: p.name, sign: p.dashamsaSign, signIndex: p.dashamsaSignIndex })),
-      d60: planets.map(p => ({ planet: p.name, sign: p.shashtiamsaSign, signIndex: p.shashtiamsaSignIndex }))
-    }
+    divisionalCharts,
+    arudhaPadas,
+    specialLagnas,
+    shadbala,
+    ashtakavarga,
+    yogas
   };
 }
 
@@ -1295,6 +1966,7 @@ export {
   getNavamsaSign as _getNavamsaSign,
   getDashamsaSign as _getDashamsaSign,
   getShastiamsaSign as _getShastiamsaSign,
+  getDivisionalSign as _getDivisionalSign,
   getHouseNumber as _getHouseNumber,
   isRetrograde as _isRetrograde,
   getPlanetDignity as _getPlanetDignity,
@@ -1307,4 +1979,9 @@ export {
   getNutation as _getNutation,
   daysInMonth as _daysInMonth,
   isLeapYear as _isLeapYear,
+  getHoraSign as _getHoraSign,
+  getDrekkanaSign as _getDrekkanaSign,
+  getSaptamsaSign as _getSaptamsaSign,
+  getDwadasamsaSign as _getDwadasamsaSign,
+  getTrimsamsaSign as _getTrimsamsaSign,
 };

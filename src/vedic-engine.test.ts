@@ -362,12 +362,32 @@ describe('Full Birth Chart', () => {
     expect(chart.houses).toHaveLength(12);
   });
 
-  it('divisional charts should have 9 planets each', () => {
+  it('divisional charts should have 9 planets each and own ascendant', () => {
     const chart = calculateBirthChart('Test', 1990, 6, 15, 8, 30, 19.076, 72.8777, 5.5, 'Mumbai');
-    expect(chart.divisionalCharts.d1).toHaveLength(9);
-    expect(chart.divisionalCharts.d9).toHaveLength(9);
-    expect(chart.divisionalCharts.d10).toHaveLength(9);
-    expect(chart.divisionalCharts.d60).toHaveLength(9);
+    // New structure: divisionalCharts[key] = { planets: [...], ascendantSignIndex, ascendantSign }
+    expect(chart.divisionalCharts.d1.planets).toHaveLength(9);
+    expect(chart.divisionalCharts.d9.planets).toHaveLength(9);
+    expect(chart.divisionalCharts.d10.planets).toHaveLength(9);
+    expect(chart.divisionalCharts.d60.planets).toHaveLength(9);
+    // All 15 divisional charts should be present
+    const divKeys = Object.keys(chart.divisionalCharts);
+    expect(divKeys.length).toBe(15);
+    // Each chart should have ascendant info
+    for (const key of divKeys) {
+      expect(chart.divisionalCharts[key].ascendantSignIndex).toBeGreaterThanOrEqual(0);
+      expect(chart.divisionalCharts[key].ascendantSignIndex).toBeLessThan(12);
+      expect(chart.divisionalCharts[key].ascendantSign).toBeTruthy();
+    }
+    // Verify new data structures exist
+    expect(chart.arudhaPadas).toBeTruthy();
+    expect(chart.arudhaPadas.AL).toBeTruthy();
+    expect(chart.arudhaPadas.UL).toBeTruthy();
+    expect(chart.specialLagnas).toBeTruthy();
+    expect(chart.shadbala).toBeTruthy();
+    expect(chart.ashtakavarga).toBeTruthy();
+    expect(chart.ashtakavarga.SAV).toHaveLength(12);
+    expect(chart.yogas).toBeTruthy();
+    expect(chart.yogas.length).toBeGreaterThan(0);
   });
 });
 

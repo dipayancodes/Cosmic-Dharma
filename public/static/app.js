@@ -361,6 +361,10 @@ function renderDashboard() {
     { id:'overview', icon:'fa-home', label:'Overview' },
     { id:'chart', icon:'fa-chart-pie', label:'Birth Chart' },
     { id:'divisional', icon:'fa-layer-group', label:'Divisional' },
+    { id:'yogas', icon:'fa-star', label:'Yogas' },
+    { id:'arudha', icon:'fa-crosshairs', label:'Arudha Padas' },
+    { id:'shadbala', icon:'fa-dumbbell', label:'Shadbala' },
+    { id:'ashtakavarga', icon:'fa-table-cells', label:'Ashtakavarga' },
     { id:'doshas', icon:'fa-shield-virus', label:'Doshas' },
     { id:'sadesati', icon:'fa-satellite', label:'Sade Sati' },
     { id:'dasha', icon:'fa-timeline', label:'Dasha' },
@@ -405,6 +409,10 @@ function renderDashContent() {
     case 'overview': return renderOverview();
     case 'chart': return renderChartTab();
     case 'divisional': return renderDivisionalTab();
+    case 'yogas': return renderYogasTab();
+    case 'arudha': return renderArudhaTab();
+    case 'shadbala': return renderShadbalaTab();
+    case 'ashtakavarga': return renderAshtakavargaTab();
     case 'doshas': return renderDoshaTab();
     case 'sadesati': return renderSadeSatiTab();
     case 'dasha': return renderDashaTab();
@@ -483,7 +491,7 @@ function renderOverview() {
         </div>
       </div>
     </div>
-    <div class="grid lg:grid-cols-2 gap-6">
+    <div class="grid lg:grid-cols-2 gap-6 mb-6">
       <div class="glass-card p-6">
         <div class="flex items-center justify-between mb-4">
           <h2 class="font-display text-lg font-bold">Birth Chart (D1)</h2>
@@ -515,6 +523,28 @@ function renderOverview() {
             </div>
           `).join('')}
         </div>
+      </div>
+    </div>
+    <div class="grid lg:grid-cols-3 gap-6 mb-6">
+      <div class="glass-card p-5">
+        <h3 class="font-display text-sm font-bold mb-3 flex items-center gap-2"><i class="fas fa-star text-amber-400"></i> Active Yogas</h3>
+        ${(c.yogas || []).filter(y => y.present).length > 0 ? 
+          (c.yogas || []).filter(y => y.present).slice(0, 4).map(y => `<div class="flex items-center justify-between p-2 rounded-lg bg-green-500/5 border border-green-500/10 mb-2"><span class="text-xs font-medium text-green-300">${y.name}</span><span class="text-[10px] text-white/30">${y.type}</span></div>`).join('') + ((c.yogas || []).filter(y => y.present).length > 4 ? '<div class="text-[10px] text-purple-400 cursor-pointer" onclick="window.__setDashTab(\'yogas\')">+' + ((c.yogas || []).filter(y => y.present).length - 4) + ' more \u2192</div>' : '')
+          : '<div class="text-xs text-white/30 text-center py-3">No special yogas detected</div>'}
+      </div>
+      <div class="glass-card p-5">
+        <h3 class="font-display text-sm font-bold mb-3 flex items-center gap-2"><i class="fas fa-crosshairs text-cyan-400"></i> Key Arudha Padas</h3>
+        ${c.arudhaPadas ? ['AL','A7','UL'].map(key => {
+          const d = c.arudhaPadas[key];
+          if (!d) return '';
+          const labels = { AL:'Arudha Lagna', A7:'Darapada', UL:'Upapada' };
+          return `<div class="flex items-center justify-between p-2 rounded-lg bg-cyan-500/5 border border-cyan-500/10 mb-2"><span class="text-xs font-medium text-cyan-300">${key} (${labels[key]})</span><span class="text-xs text-white/50">${d.sign}</span></div>`;
+        }).join('') : '<div class="text-xs text-white/30 text-center py-3">Not available</div>'}
+        <div class="text-[10px] text-purple-400 cursor-pointer mt-1" onclick="window.__setDashTab('arudha')">View all padas \u2192</div>
+      </div>
+      <div class="glass-card p-5">
+        <h3 class="font-display text-sm font-bold mb-3 flex items-center gap-2"><i class="fas fa-compass text-purple-400"></i> Special Lagnas</h3>
+        ${c.specialLagnas ? Object.entries(c.specialLagnas).map(([key, val]) => `<div class="flex items-center justify-between p-2 rounded-lg bg-purple-500/5 border border-purple-500/10 mb-2"><span class="text-xs font-medium text-purple-300">${val.abbr}</span><span class="text-xs text-white/50">${val.sign}</span></div>`).join('') : '<div class="text-xs text-white/30 text-center py-3">Not available</div>'}
       </div>
     </div>
   </div>`;
@@ -767,41 +797,77 @@ function renderSouthChart(planets, ascSignIdx) {
 }
 
 // === DIVISIONAL CHARTS TAB ===
+// FIXED: Each divisional chart now uses its OWN ascendant from the engine, not D1's ascendant
 function renderDivisionalTab() {
   const c = currentChart;
-  const divCharts = { d1:'Rashi (D1)', d9:'Navamsa (D9)', d10:'Dashamsa (D10)', d60:'Shastiamsa (D60)' };
-  const chartData = c.divisionalCharts[currentDivisional];
-  const fakePlanets = chartData.map(d => {
-    const orig = c.planets.find(p => p.name === d.planet);
-    return { ...orig, signIndex: d.signIndex, sign: d.sign, house: ((d.signIndex - c.ascendant.signIndex + 12) % 12) + 1 };
-  });
-  const descriptions = {
-    d1: 'The Rashi chart (D1) is your main birth chart, showing overall life themes, planetary strengths, and the foundation for all other analyses.',
-    d9: 'The Navamsa chart (D9) reveals your soul\u2019s deeper purpose, marriage potential, and spiritual path. It is considered the most important divisional chart after D1.',
-    d10: 'The Dashamsa chart (D10) specifically analyzes your career trajectory, professional achievements, and public reputation.',
-    d60: 'The Shastiamsa chart (D60) is the most precise divisional chart, used for confirming planetary effects and past-life karma indicators.'
+  const divCharts = {
+    d1:'Rashi (D1)', d2:'Hora (D2)', d3:'Drekkana (D3)', d7:'Saptamsa (D7)',
+    d9:'Navamsa (D9)', d10:'Dashamsa (D10)', d12:'Dwadasamsa (D12)',
+    d16:'Shodasamsa (D16)', d20:'Vimsamsa (D20)', d24:'Chaturvimsamsa (D24)',
+    d27:'Bhamsa (D27)', d30:'Trimsamsa (D30)', d40:'Khavedamsa (D40)',
+    d45:'Akshavedamsa (D45)', d60:'Shastiamsa (D60)'
   };
+  const descriptions = {
+    d1: 'The Rashi chart (D1) is your main birth chart showing overall life themes and planetary strengths.',
+    d2: 'The Hora chart (D2) analyzes wealth accumulation and financial prosperity. Only Leo (Sun) and Cancer (Moon) signs are used.',
+    d3: 'The Drekkana chart (D3) reveals information about siblings, courage, and short journeys.',
+    d7: 'The Saptamsa chart (D7) examines children, progeny, and creative expressions.',
+    d9: 'The Navamsa chart (D9) reveals your soul\'s deeper purpose, marriage potential, and spiritual path. Most important after D1.',
+    d10: 'The Dashamsa chart (D10) specifically analyzes career trajectory, professional achievements, and public reputation.',
+    d12: 'The Dwadasamsa chart (D12) reveals information about parents, ancestral karma, and lineage.',
+    d16: 'The Shodasamsa chart (D16) analyzes vehicles, comforts, luxuries, and overall happiness.',
+    d20: 'The Vimsamsa chart (D20) examines spiritual practices, worship, and religious inclinations.',
+    d24: 'The Chaturvimsamsa chart (D24) reveals academic achievements, learning, and education.',
+    d27: 'The Bhamsa/Nakshatramsa chart (D27) analyzes physical strength, stamina, and vitality.',
+    d30: 'The Trimsamsa chart (D30) reveals potential misfortunes, evils, and challenges to overcome.',
+    d40: 'The Khavedamsa chart (D40) examines auspicious and inauspicious effects inherited from ancestors.',
+    d45: 'The Akshavedamsa chart (D45) analyzes overall character, conduct, and moral nature.',
+    d60: 'The Shastiamsa chart (D60) is the most precise divisional chart, confirming planetary effects and past-life karma.'
+  };
+
+  // Get data for current divisional chart — use the chart's OWN ascendant
+  const divData = c.divisionalCharts[currentDivisional];
+  if (!divData) { currentDivisional = 'd1'; return renderDivisionalTab(); }
+
+  const divAscSignIdx = divData.ascendantSignIndex;
+  const chartPlanets = divData.planets;
+
+  // Build fake planet objects for chart rendering, using the DIVISIONAL ascendant for house numbers
+  const fakePlanets = chartPlanets.map(d => {
+    const orig = c.planets.find(p => p.name === d.planet);
+    return { ...orig, signIndex: d.signIndex, sign: d.sign, house: ((d.signIndex - divAscSignIdx + 12) % 12) + 1 };
+  });
+
   return `
   <div class="page-enter">
     <div class="flex items-center justify-between mb-6 flex-wrap gap-4">
-      <div><h1 class="font-display text-2xl font-bold">Divisional Charts</h1><p class="text-white/40 text-sm mt-1">Explore D1, D9, D10, and D60 charts</p></div>
-      <div class="flex gap-2 flex-wrap">${Object.entries(divCharts).map(([key, label]) => `<button onclick="window.__setDivisional('${key}')" class="tab-btn ${currentDivisional===key?'active':''}">${label}</button>`).join('')}</div>
+      <div><h1 class="font-display text-2xl font-bold">Divisional Charts (Vargas)</h1><p class="text-white/40 text-sm mt-1">All 15 Parashari divisional charts with correct ascendants</p></div>
+    </div>
+    <div class="flex gap-2 flex-wrap mb-6">
+      ${Object.entries(divCharts).map(([key, label]) => `<button onclick="window.__setDivisional('${key}')" class="tab-btn text-xs ${currentDivisional===key?'active':''}">${label}</button>`).join('')}
     </div>
     <div class="grid lg:grid-cols-5 gap-6">
       <div class="lg:col-span-3 glass-card p-6 sm:p-8">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="font-display text-lg font-semibold">${divCharts[currentDivisional]}</h2>
+          <div>
+            <h2 class="font-display text-lg font-semibold">${divCharts[currentDivisional]}</h2>
+            <p class="text-xs text-white/30 mt-1">Ascendant: ${divData.ascendantSign} (${divAscSignIdx + 1})</p>
+          </div>
           <div class="flex gap-2"><button onclick="window.__setChartStyle('north')" class="tab-btn text-xs ${chartStyle==='north'?'active':''}">North</button><button onclick="window.__setChartStyle('south')" class="tab-btn text-xs ${chartStyle==='south'?'active':''}">South</button></div>
         </div>
-        ${chartStyle === 'north' ? renderNorthChart(fakePlanets, c.ascendant.signIndex) : renderSouthChart(fakePlanets, c.ascendant.signIndex)}
+        ${chartStyle === 'north' ? renderNorthChart(fakePlanets, divAscSignIdx) : renderSouthChart(fakePlanets, divAscSignIdx)}
       </div>
-      <div class="lg:col-span-2 glass-card p-6">
-        <h3 class="font-display text-lg font-semibold mb-4">Positions in ${divCharts[currentDivisional]}</h3>
-        <div class="space-y-2">${chartData.map(d => {
-          const orig = c.planets.find(p => p.name === d.planet);
-          return `<div class="flex items-center justify-between p-2 rounded-lg hover:bg-purple-500/5 transition-colors cursor-pointer" onclick="window.__selectPlanet('${d.planet}')"><div class="flex items-center gap-3"><span style="color:${PLANET_COLORS[d.planet]}" class="font-bold text-xs">${PLANET_ABBR[d.planet]}</span><span class="text-sm">${d.planet}</span></div><div class="text-sm text-white/60">${d.signIndex + 1} - ${d.sign}</div></div>`;
-        }).join('')}</div>
-        <div class="mt-6 p-4 rounded-xl bg-purple-500/5 border border-purple-500/10"><p class="text-xs text-white/40 leading-relaxed">${descriptions[currentDivisional]}</p></div>
+      <div class="lg:col-span-2">
+        <div class="glass-card p-6 mb-4">
+          <h3 class="font-display text-lg font-semibold mb-4">Positions in ${divCharts[currentDivisional]}</h3>
+          <div class="space-y-2">${chartPlanets.map(d => {
+            const houseNum = ((d.signIndex - divAscSignIdx + 12) % 12) + 1;
+            return `<div class="flex items-center justify-between p-2 rounded-lg hover:bg-purple-500/5 transition-colors cursor-pointer" onclick="window.__selectPlanet('${d.planet}')"><div class="flex items-center gap-3"><span style="color:${PLANET_COLORS[d.planet]}" class="font-bold text-xs">${PLANET_ABBR[d.planet]}</span><span class="text-sm">${d.planet}</span></div><div class="text-right"><div class="text-sm text-white/60">${d.signIndex + 1} - ${d.sign}</div><div class="text-[10px] text-white/30">H${houseNum}</div></div></div>`;
+          }).join('')}</div>
+        </div>
+        <div class="glass-card p-4">
+          <div class="p-3 rounded-xl bg-purple-500/5 border border-purple-500/10"><p class="text-xs text-white/40 leading-relaxed">${descriptions[currentDivisional] || ''}</p></div>
+        </div>
       </div>
     </div>
   </div>`;
@@ -1001,6 +1067,274 @@ function renderInsightsTab() {
           </div>
         </div>
       `).join('')}
+    </div>
+  </div>`;
+}
+
+// === YOGAS TAB ===
+function renderYogasTab() {
+  const c = currentChart;
+  const yogas = c.yogas || [];
+  const presentYogas = yogas.filter(y => y.present);
+  const absentYogas = yogas.filter(y => !y.present);
+  const typeColors = {
+    'Pancha Mahapurusha': 'amber', 'Wealth & Wisdom': 'green', 'Power & Authority': 'purple',
+    'Wealth': 'emerald', 'Intelligence': 'cyan', 'Wealth & Courage': 'orange',
+    'Virtue & Fame': 'blue', 'Fortune from Adversity': 'indigo', 'Cancellation of Debilitation': 'teal',
+    'Knowledge & Arts': 'pink', 'Challenge': 'red', 'Leadership': 'violet'
+  };
+  return `
+  <div class="page-enter">
+    <div class="mb-6"><h1 class="font-display text-2xl font-bold">Yoga Analysis</h1><p class="text-white/40 text-sm mt-1">Classical Vedic planetary combinations in your chart</p></div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div class="glass-card p-4 text-center"><div class="font-display text-3xl font-bold text-green-400">${presentYogas.length}</div><div class="text-xs text-white/40 mt-1">Active Yogas</div></div>
+      <div class="glass-card p-4 text-center"><div class="font-display text-3xl font-bold text-white/30">${absentYogas.length}</div><div class="text-xs text-white/40 mt-1">Not Present</div></div>
+      <div class="glass-card p-4 text-center"><div class="font-display text-3xl font-bold text-purple-400">${presentYogas.filter(y => y.type.includes('Mahapurusha')).length}</div><div class="text-xs text-white/40 mt-1">Mahapurusha</div></div>
+      <div class="glass-card p-4 text-center"><div class="font-display text-3xl font-bold text-amber-400">${presentYogas.filter(y => y.type.includes('Wealth') || y.type.includes('Power')).length}</div><div class="text-xs text-white/40 mt-1">Raja/Dhana</div></div>
+    </div>
+    ${presentYogas.length > 0 ? `
+    <div class="glass-card p-6 mb-6">
+      <h2 class="font-display text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-check-circle text-green-400"></i> Active Yogas in Your Chart</h2>
+      <div class="grid gap-4">
+        ${presentYogas.map(y => `
+          <div class="p-5 rounded-xl bg-green-500/5 border border-green-500/10">
+            <div class="flex items-start justify-between mb-3 flex-wrap gap-2">
+              <div>
+                <h3 class="font-display text-lg font-bold text-green-300">${y.name}</h3>
+                <span class="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-400/70">${y.type}</span>
+              </div>
+              <div class="flex gap-1">${y.planets.map(p => `<span class="text-xs font-bold px-2 py-0.5 rounded-md" style="color:${PLANET_COLORS[p]||'#a855f7'};background:${(PLANET_COLORS[p]||'#a855f7')}12">${PLANET_ABBR[p]||p}</span>`).join('')}</div>
+            </div>
+            <p class="text-sm text-white/50 leading-relaxed">${y.description}</p>
+          </div>
+        `).join('')}
+      </div>
+    </div>` : ''}
+    <div class="glass-card p-6">
+      <h2 class="font-display text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-times-circle text-white/20"></i> Not Present</h2>
+      <div class="grid sm:grid-cols-2 gap-3">
+        ${absentYogas.map(y => `
+          <div class="p-3 rounded-lg bg-white/[0.02] border border-white/5">
+            <div class="flex items-center justify-between">
+              <span class="text-sm font-medium text-white/40">${y.name}</span>
+              <span class="text-[10px] text-white/20">${y.type}</span>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// === ARUDHA PADAS TAB ===
+function renderArudhaTab() {
+  const c = currentChart;
+  const ap = c.arudhaPadas || {};
+  const sl = c.specialLagnas || {};
+  const arudhaNames = {
+    AL: { full: 'Arudha Lagna', house: 1, desc: 'How the world perceives you; your public image and social standing.' },
+    A2: { full: 'Dhana Pada', house: 2, desc: 'Perceived wealth and family status; how others view your finances.' },
+    A3: { full: 'Vikrama Pada', house: 3, desc: 'Perceived courage and communication; reputation among siblings.' },
+    A4: { full: 'Sukha Pada', house: 4, desc: 'Perceived happiness, home life, and emotional comfort.' },
+    A5: { full: 'Mantra Pada', house: 5, desc: 'Perceived intelligence, creative output, and children.' },
+    A6: { full: 'Roga Pada', house: 6, desc: 'How enemies and diseases manifest in your life externally.' },
+    A7: { full: 'Darapada', house: 7, desc: 'Your spouse\'s public image; how partnerships appear to the world.' },
+    A8: { full: 'Mrityu Pada', house: 8, desc: 'Perception of longevity and transformative events.' },
+    A9: { full: 'Dharma Pada', house: 9, desc: 'Perceived dharma, guru connections, and fortune.' },
+    A10: { full: 'Rajya Pada', house: 10, desc: 'How your career and authority appear to the world.' },
+    A11: { full: 'Labha Pada', house: 11, desc: 'Perceived gains, income flow, and social network.' },
+    UL: { full: 'Upapada Lagna', house: 12, desc: 'Nature and quality of marriage; spouse\'s character and background.' }
+  };
+  return `
+  <div class="page-enter">
+    <div class="mb-6"><h1 class="font-display text-2xl font-bold">Arudha Padas & Special Lagnas</h1><p class="text-white/40 text-sm mt-1">Jaimini system — how life areas manifest in the material world</p></div>
+    <div class="glass-card p-6 mb-6">
+      <h2 class="font-display text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-compass text-purple-400"></i> Special Lagnas</h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        ${Object.entries(sl).map(([key, val]) => `
+          <div class="p-4 rounded-xl bg-purple-500/5 border border-purple-500/10 text-center">
+            <div class="text-xs text-purple-300/60 font-semibold mb-1">${val.abbr || key.replace(/([A-Z])/g, ' $1').trim()}</div>
+            <div class="font-display text-xl font-bold text-purple-300">${val.sign}</div>
+            <div class="text-[10px] text-white/30 mt-1">Sign ${val.signIndex + 1}</div>
+            <div class="text-[10px] text-white/20 mt-1">${key === 'horaLagna' ? 'Wealth & prosperity' : key === 'ghatiLagna' ? 'Power & fame' : key === 'bhavaLagna' ? 'Physical existence' : 'True self'}</div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+    <div class="glass-card p-6 mb-6">
+      <h2 class="font-display text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-crosshairs text-cyan-400"></i> Key Arudha Padas</h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+        ${['AL','A7','UL'].map(key => {
+          const data = ap[key];
+          const info = arudhaNames[key];
+          if (!data) return '';
+          return `
+          <div class="p-5 rounded-xl bg-cyan-500/5 border border-cyan-500/15">
+            <div class="flex items-center justify-between mb-2">
+              <span class="text-sm font-bold text-cyan-300">${key} — ${info.full}</span>
+              <span class="text-xs text-white/30">H${info.house}</span>
+            </div>
+            <div class="font-display text-2xl font-bold mb-2">${data.sign}</div>
+            <div class="text-xs text-white/30 mb-2">Sign ${data.signIndex + 1}</div>
+            <p class="text-xs text-white/40 leading-relaxed">${info.desc}</p>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    <div class="glass-card p-6">
+      <h2 class="font-display text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-th text-amber-400"></i> All 12 Arudha Padas</h2>
+      <div class="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        ${Object.entries(ap).map(([key, data]) => {
+          const info = arudhaNames[key] || { full: key, house: '?', desc: '' };
+          return `
+          <div class="p-3 rounded-lg bg-white/[0.02] border border-white/5 hover:border-purple-500/20 transition-colors">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="font-bold text-sm text-purple-300">${key}</span>
+                <span class="text-xs text-white/30 ml-2">${info.full}</span>
+              </div>
+              <div class="text-right">
+                <span class="text-sm font-semibold">${data.sign}</span>
+                <span class="text-[10px] text-white/30 ml-1">(${data.signIndex + 1})</span>
+              </div>
+            </div>
+            <p class="text-[10px] text-white/25 mt-1">${info.desc}</p>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+
+// === SHADBALA TAB ===
+function renderShadbalaTab() {
+  const c = currentChart;
+  const sb = c.shadbala || {};
+  const planets = Object.entries(sb).sort((a,b) => b[1].total - a[1].total);
+  const maxTotal = Math.max(...planets.map(([,v]) => v.total), 60);
+  const rankColors = { 'Very Strong': 'text-green-400', 'Strong': 'text-emerald-400', 'Average': 'text-amber-400', 'Weak': 'text-orange-400', 'Very Weak': 'text-red-400' };
+  return `
+  <div class="page-enter">
+    <div class="mb-6"><h1 class="font-display text-2xl font-bold">Shadbala — Six-fold Strength</h1><p class="text-white/40 text-sm mt-1">Composite planetary strength analysis based on position, direction, time, and nature</p></div>
+    <div class="glass-card p-6 mb-6">
+      <h2 class="font-display text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-ranking-star text-amber-400"></i> Planetary Strength Ranking</h2>
+      <div class="space-y-4">
+        ${planets.map(([name, data], idx) => {
+          const pct = Math.round((data.total / maxTotal) * 100);
+          return `
+          <div class="flex items-center gap-4">
+            <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style="background:${PLANET_COLORS[name]}15;color:${PLANET_COLORS[name]}">${PLANET_ABBR[name]}</div>
+            <div class="flex-1">
+              <div class="flex items-center justify-between mb-1">
+                <span class="text-sm font-semibold">${name}</span>
+                <div class="flex items-center gap-3">
+                  <span class="${rankColors[data.rank] || 'text-white/50'} text-xs font-medium">${data.rank}</span>
+                  <span class="font-display text-lg font-bold">${data.total}</span>
+                </div>
+              </div>
+              <div class="h-2 rounded-full bg-white/5 overflow-hidden">
+                <div class="h-full rounded-full transition-all" style="width:${pct}%;background:${PLANET_COLORS[name]}"></div>
+              </div>
+            </div>
+          </div>`;
+        }).join('')}
+      </div>
+    </div>
+    <div class="glass-card p-6">
+      <h2 class="font-display text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-table text-purple-400"></i> Strength Breakdown</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-sm">
+          <thead><tr class="border-b border-purple-500/10">
+            <th class="text-left py-3 px-3 text-white/40 font-medium">Planet</th>
+            <th class="text-center py-3 px-3 text-white/40 font-medium">Sthana</th>
+            <th class="text-center py-3 px-3 text-white/40 font-medium">Dig</th>
+            <th class="text-center py-3 px-3 text-white/40 font-medium">Kala</th>
+            <th class="text-center py-3 px-3 text-white/40 font-medium">Naisargika</th>
+            <th class="text-center py-3 px-3 text-white/40 font-medium">Total</th>
+            <th class="text-center py-3 px-3 text-white/40 font-medium">Rank</th>
+          </tr></thead>
+          <tbody>
+            ${planets.map(([name, data]) => `
+              <tr class="border-b border-purple-500/5 hover:bg-purple-500/5">
+                <td class="py-3 px-3"><span style="color:${PLANET_COLORS[name]}" class="font-bold">${PLANET_ABBR[name]}</span> <span class="text-white/50">${name}</span></td>
+                <td class="py-3 px-3 text-center font-mono text-white/60">${data.sthana}</td>
+                <td class="py-3 px-3 text-center font-mono text-white/60">${data.dig}</td>
+                <td class="py-3 px-3 text-center font-mono text-white/60">${data.kala}</td>
+                <td class="py-3 px-3 text-center font-mono text-white/60">${data.naisargika}</td>
+                <td class="py-3 px-3 text-center font-mono font-bold">${data.total}</td>
+                <td class="py-3 px-3 text-center"><span class="${rankColors[data.rank] || 'text-white/50'} text-xs font-medium">${data.rank}</span></td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-4 p-4 rounded-xl bg-purple-500/5 border border-purple-500/10">
+        <p class="text-xs text-white/40 leading-relaxed"><strong class="text-white/60">Sthana Bala:</strong> Positional strength (dignity). <strong class="text-white/60">Dig Bala:</strong> Directional strength. <strong class="text-white/60">Kala Bala:</strong> Temporal strength. <strong class="text-white/60">Naisargika Bala:</strong> Natural inherent strength.</p>
+      </div>
+    </div>
+  </div>`;
+}
+
+// === ASHTAKAVARGA TAB ===
+function renderAshtakavargaTab() {
+  const c = currentChart;
+  const av = c.ashtakavarga || {};
+  if (!av.SAV || !av.planetBAV) return '<div class="page-enter"><div class="glass-card p-6 text-center text-white/40">Ashtakavarga data not available.</div></div>';
+  const totalBindu = av.SAV.reduce((s, v) => s + v, 0);
+  const avgPerSign = (totalBindu / 12).toFixed(1);
+  const strongSigns = av.signStrength ? av.signStrength.filter(s => s.strength === 'Strong') : [];
+  const weakSigns = av.signStrength ? av.signStrength.filter(s => s.strength === 'Weak') : [];
+  return `
+  <div class="page-enter">
+    <div class="mb-6"><h1 class="font-display text-2xl font-bold">Ashtakavarga</h1><p class="text-white/40 text-sm mt-1">Bindu-based transit strength system — SAV (Sarvashtakavarga) & BAV (Bhinnashtakavarga)</p></div>
+    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+      <div class="glass-card p-4 text-center"><div class="font-display text-3xl font-bold text-purple-400">${totalBindu}</div><div class="text-xs text-white/40 mt-1">Total Bindus</div></div>
+      <div class="glass-card p-4 text-center"><div class="font-display text-3xl font-bold text-cyan-400">${avgPerSign}</div><div class="text-xs text-white/40 mt-1">Avg per Sign</div></div>
+      <div class="glass-card p-4 text-center"><div class="font-display text-3xl font-bold text-green-400">${strongSigns.length}</div><div class="text-xs text-white/40 mt-1">Strong Signs</div></div>
+      <div class="glass-card p-4 text-center"><div class="font-display text-3xl font-bold text-red-400">${weakSigns.length}</div><div class="text-xs text-white/40 mt-1">Weak Signs</div></div>
+    </div>
+    <div class="glass-card p-6 mb-6">
+      <h2 class="font-display text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-chart-bar text-cyan-400"></i> SAV — Sign-wise Total Bindus</h2>
+      <div class="grid grid-cols-12 gap-1 items-end h-40 mb-4">
+        ${av.SAV.map((val, idx) => {
+          const maxSAV = Math.max(...av.SAV);
+          const pct = Math.round((val / maxSAV) * 100);
+          const color = val >= 30 ? '#10b981' : val >= 25 ? '#f59e0b' : '#ef4444';
+          return `<div class="flex flex-col items-center gap-1"><div class="text-[9px] font-mono font-bold" style="color:${color}">${val}</div><div class="w-full rounded-t" style="height:${pct}%;background:${color}30;border:1px solid ${color}60"></div><div class="text-[8px] text-white/30 mt-1">${SIGNS[idx].substring(0,3)}</div></div>`;
+        }).join('')}
+      </div>
+      <div class="flex items-center gap-4 text-[10px] text-white/30"><span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-green-500"></span> \u226530 Strong</span><span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-amber-500"></span> 25-29 Moderate</span><span class="flex items-center gap-1"><span class="w-2 h-2 rounded-full bg-red-500"></span> &lt;25 Weak</span></div>
+    </div>
+    <div class="glass-card p-6">
+      <h2 class="font-display text-lg font-bold mb-4 flex items-center gap-2"><i class="fas fa-table-cells text-purple-400"></i> BAV — Planet-wise Bindus by Sign</h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-xs">
+          <thead><tr class="border-b border-purple-500/10">
+            <th class="py-2 px-2 text-left text-white/40">Planet</th>
+            ${SIGNS.map(s => `<th class="py-2 px-1 text-center text-white/30">${s.substring(0,3)}</th>`).join('')}
+            <th class="py-2 px-2 text-center text-white/40">Total</th>
+          </tr></thead>
+          <tbody>
+            ${['Sun','Moon','Mars','Mercury','Jupiter','Venus','Saturn'].map(pName => {
+              const bav = av.planetBAV[pName] || new Array(12).fill(0);
+              const total = bav.reduce((s, v) => s + v, 0);
+              return `<tr class="border-b border-purple-500/5">
+                <td class="py-2 px-2"><span style="color:${PLANET_COLORS[pName]}" class="font-bold">${PLANET_ABBR[pName]}</span></td>
+                ${bav.map(v => `<td class="py-2 px-1 text-center font-mono ${v >= 5 ? 'text-green-400' : v >= 3 ? 'text-white/60' : 'text-red-400/60'}">${v}</td>`).join('')}
+                <td class="py-2 px-2 text-center font-bold">${total}</td>
+              </tr>`;
+            }).join('')}
+            <tr class="border-t-2 border-purple-500/20 font-bold">
+              <td class="py-2 px-2 text-white/60">SAV</td>
+              ${av.SAV.map(v => `<td class="py-2 px-1 text-center ${v >= 30 ? 'text-green-400' : v >= 25 ? 'text-amber-400' : 'text-red-400'}">${v}</td>`).join('')}
+              <td class="py-2 px-2 text-center text-purple-300">${totalBindu}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="mt-4 p-4 rounded-xl bg-purple-500/5 border border-purple-500/10">
+        <p class="text-xs text-white/40 leading-relaxed">Ashtakavarga shows the benefic points (bindus) each planet receives in each sign. Higher bindus indicate more favorable transits through that sign. SAV (total row) shows combined strength — signs with 30+ bindus are very favorable for important activities.</p>
+      </div>
     </div>
   </div>`;
 }
