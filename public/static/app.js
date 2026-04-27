@@ -373,8 +373,9 @@ function renderDashboard() {
   ];
   return `
   <button class="mobile-menu-btn fixed top-4 left-4 z-50 w-10 h-10 rounded-lg bg-cosmic-800/90 backdrop-blur border border-purple-500/20 flex items-center justify-center text-white/60 hover:text-white" onclick="window.__toggleSidebar()">
-    <i class="fas fa-bars"></i>
+    <i class="fas ${sidebarOpen ? 'fa-times' : 'fa-bars'}"></i>
   </button>
+  <div class="sidebar-overlay ${sidebarOpen ? 'active' : ''}" id="sidebarOverlay" onclick="window.__toggleSidebar()"></div>
   <aside class="sidebar ${sidebarOpen ? 'open' : ''}" id="sidebar">
     <div class="p-6 border-b border-purple-500/10">
       <div class="flex items-center gap-3 mb-4 cursor-pointer" onclick="window.__nav('landing')">
@@ -398,7 +399,7 @@ function renderDashboard() {
       <a class="sidebar-link" onclick="window.__nav('generate')"><i class="fas fa-plus"></i><span>New Chart</span></a>
     </div>
   </aside>
-  <div class="dashboard-content md:ml-[280px] min-h-screen p-4 sm:p-6 lg:p-8 pt-16 md:pt-8">
+  <div class="dashboard-content min-h-screen">
     <div class="pdf-header no-screen"><div class="brand">\u2726 Cosmic Dharma</div><div class="subtitle">Vedic Birth Chart \u2014 ${c.name} \u2014 ${c.dateOfBirth} ${c.timeOfBirth} \u2014 ${c.placeOfBirth}</div></div>
     ${renderDashContent()}
   </div>`;
@@ -963,23 +964,25 @@ function renderDashaTab() {
       <h2 class="font-display text-lg font-semibold mb-4">Detailed Periods</h2>
       <div class="space-y-1">
         ${dashas.map(d => `
-          <div class="dasha-row ${d.isCurrent?'current':''}" onclick="this.querySelector('.ad-content')?.classList.toggle('hidden')">
-            <div class="flex items-center gap-4 flex-1 min-w-0">
+          <div class="dasha-row-wrap ${d.isCurrent?'current':''}" onclick="this.classList.toggle('expanded');">
+            <div class="dasha-row-header">
               <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold flex-shrink-0" style="background:${PLANET_COLORS[d.planet]}12;color:${PLANET_COLORS[d.planet]}">${PLANET_ABBR[d.planet]}</div>
               <div class="flex-1 min-w-0">
-                <div class="flex items-center gap-2"><span class="font-semibold text-sm">${d.planet} Mahadasha</span>${d.isCurrent?'<span class="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs font-medium">Active</span>':''}</div>
+                <div class="flex items-center gap-2 flex-wrap"><span class="font-semibold text-sm">${d.planet} Mahadasha</span>${d.isCurrent?'<span class="px-2 py-0.5 rounded-full bg-purple-500/20 text-purple-300 text-xs font-medium">Active</span>':''}</div>
                 <div class="text-xs text-white/40 mt-0.5">${d.startDate} \u2192 ${d.endDate} \u00b7 ${d.years} years</div>
               </div>
-              <i class="fas fa-chevron-down text-white/15 text-xs"></i>
+              <i class="fas fa-chevron-down dasha-chevron text-white/20 text-xs transition-transform"></i>
             </div>
-            <div class="ad-content hidden mt-4 pl-14">
-              <div class="text-xs text-white/30 mb-2 font-medium">Antardasha Periods:</div>
-              <div class="grid sm:grid-cols-2 gap-1">${d.antardasha.map(a => `
-                <div class="flex items-center justify-between px-3 py-2 rounded-lg ${a.isCurrent?'bg-cyan-500/10 border border-cyan-500/20':'bg-white/[0.02]'}">
-                  <div class="flex items-center gap-2"><span class="text-xs font-bold" style="color:${PLANET_COLORS[a.planet]}">${PLANET_ABBR[a.planet]}</span><span class="text-xs ${a.isCurrent?'text-cyan-400 font-medium':'text-white/50'}">${a.planet}</span>${a.isCurrent?'<span class="text-[10px] text-cyan-400">\u25CF</span>':''}</div>
-                  <span class="text-[10px] text-white/30">${a.startDate} \u2192 ${a.endDate}</span>
-                </div>
-              `).join('')}</div>
+            <div class="ad-content">
+              <div class="ad-content-inner">
+                <div class="text-xs text-white/30 mb-2 font-medium">Antardasha Periods:</div>
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">${d.antardasha.map(a => `
+                  <div class="ad-item flex items-center justify-between px-3 py-2 rounded-lg ${a.isCurrent?'bg-cyan-500/10 border border-cyan-500/20':'bg-white/[0.02]'}">
+                    <div class="flex items-center gap-2"><span class="text-xs font-bold" style="color:${PLANET_COLORS[a.planet]}">${PLANET_ABBR[a.planet]}</span><span class="text-xs ${a.isCurrent?'text-cyan-400 font-medium':'text-white/50'}">${a.planet}</span>${a.isCurrent?'<span class="text-[10px] text-cyan-400">\u25CF</span>':''}</div>
+                    <span class="text-[10px] text-white/30">${a.startDate} \u2192 ${a.endDate}</span>
+                  </div>
+                `).join('')}</div>
+              </div>
             </div>
           </div>
         `).join('')}
@@ -1514,11 +1517,18 @@ async function handleFormSubmit(e) {
 
 // Global handlers
 window.__nav = (page) => navigate(page);
-window.__setDashTab = (tab) => { currentDashTab = tab; sidebarOpen = false; render(); };
+window.__setDashTab = (tab) => { currentDashTab = tab; sidebarOpen = false; document.body.style.overflow = ''; render(); };
 window.__setChartStyle = (style) => { chartStyle = style; render(); };
 window.__setDivisional = (div) => { currentDivisional = div; render(); };
 window.__selectPlanet = (name) => { selectedPlanet = name; render(); };
-window.__toggleSidebar = () => { sidebarOpen = !sidebarOpen; const sb = document.getElementById('sidebar'); if(sb) sb.classList.toggle('open'); };
+window.__toggleSidebar = () => { 
+  sidebarOpen = !sidebarOpen; 
+  const sb = document.getElementById('sidebar'); 
+  const ov = document.getElementById('sidebarOverlay');
+  if(sb) sb.classList.toggle('open', sidebarOpen); 
+  if(ov) ov.classList.toggle('active', sidebarOpen);
+  document.body.style.overflow = sidebarOpen ? 'hidden' : '';
+};
 window.__toggleSection = (id) => { collapsedSections[id] = !collapsedSections[id]; render(); };
 
 window.__toggleTheme = () => {

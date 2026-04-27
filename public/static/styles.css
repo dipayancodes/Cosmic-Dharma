@@ -96,6 +96,10 @@ html:not(.dark) .sidebar {
   border-color: rgba(100, 100, 180, 0.1) !important;
 }
 
+html:not(.dark) .sidebar-overlay.active {
+  background: rgba(0, 0, 0, 0.2);
+}
+
 html:not(.dark) .sidebar-link { color: rgba(26, 26, 46, 0.5) !important; }
 html:not(.dark) .sidebar-link:hover { background: rgba(124, 58, 237, 0.06) !important; color: rgba(26, 26, 46, 0.8) !important; }
 html:not(.dark) .sidebar-link.active { background: rgba(124, 58, 237, 0.08) !important; color: #7c3aed !important; border-left-color: #7c3aed !important; }
@@ -174,8 +178,8 @@ html:not(.dark) ::-webkit-scrollbar-thumb { background: rgba(100, 100, 180, 0.2)
 html:not(.dark) .planet-badge { background: rgba(124, 58, 237, 0.06) !important; border-color: rgba(124, 58, 237, 0.12) !important; }
 
 /* Light mode dasha row */
-html:not(.dark) .dasha-row:hover { background: rgba(124, 58, 237, 0.04) !important; }
-html:not(.dark) .dasha-row.current { background: rgba(124, 58, 237, 0.06) !important; border-left-color: #7c3aed !important; }
+html:not(.dark) .dasha-row-wrap:hover { background: rgba(124, 58, 237, 0.04) !important; }
+html:not(.dark) .dasha-row-wrap.current { background: rgba(124, 58, 237, 0.06) !important; border-left-color: #7c3aed !important; }
 
 /* ============================================================
    DARK MODE (default)
@@ -423,6 +427,27 @@ html:not(.dark) .chart-tooltip {
   box-shadow: 0 0 15px rgba(168, 85, 250, 0.1);
 }
 
+/* === Sidebar Overlay === */
+.sidebar-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(2px);
+  z-index: 35;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+
+.sidebar-overlay.active {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+@media (min-width: 1024px) {
+  .sidebar-overlay { display: none !important; }
+}
+
 /* === Sidebar === */
 .sidebar {
   width: 280px;
@@ -462,6 +487,13 @@ html:not(.dark) .chart-tooltip {
 }
 
 .sidebar-link i { width: 20px; text-align: center; font-size: 15px; }
+
+/* === Dashboard Content === */
+.dashboard-content {
+  padding: 24px;
+  padding-top: 24px;
+  transition: margin-left 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
 
 /* === Scrollbar === */
 ::-webkit-scrollbar { width: 6px; }
@@ -573,16 +605,174 @@ html:not(.dark) .skeleton {
   filter: drop-shadow(0 0 8px var(--neon-purple));
 }
 
-/* === Responsive === */
-@media (max-width: 768px) {
-  .sidebar { transform: translateX(-100%); }
-  .sidebar.open { transform: translateX(0); }
-  .zodiac-wheel { width: 280px; height: 280px; }
-  .dashboard-content { margin-left: 0 !important; }
+/* ============================================================
+   RESPONSIVE — Comprehensive breakpoints for ALL devices
+   ============================================================ */
+
+/* === Extra-small devices (phones <360px, e.g. iPhone SE, Galaxy Fold) === */
+@media (max-width: 359px) {
+  body { font-size: 13px; }
+  .glass-card { border-radius: 10px; }
+  .glass-card:hover { transform: none; }
+  .btn-primary { padding: 10px 20px; font-size: 14px; border-radius: 10px; }
+  .btn-secondary { padding: 8px 16px; font-size: 13px; }
+  .cosmic-input { padding: 10px 14px; font-size: 14px; border-radius: 10px; }
+  .tab-btn { padding: 6px 10px; font-size: 11px; border-radius: 8px; }
+  .sidebar { width: 260px; }
+  .sidebar-link { padding: 9px 14px; font-size: 13px; margin: 2px 8px; }
+  .ni-chart { max-width: 280px; }
+  .si-chart { max-width: 280px; }
+  .si-planet { font-size: 7px; }
+  .si-sign-num { font-size: 8px; }
+  .si-asc-label { font-size: 6px; }
+  .zodiac-wheel { width: 200px; height: 200px; }
+  .dasha-row-header { gap: 8px; }
+  .dasha-row-header .w-10 { width: 32px; height: 32px; min-width: 32px; }
+  .ad-content-inner { padding-left: 40px; }
+  .ad-item { padding: 6px 8px; }
+  .ad-item .text-xs { font-size: 10px; }
+  .ad-item .text-\[10px\] { font-size: 9px; }
+  .planet-badge { padding: 3px 6px; font-size: 10px; }
+  .chart-container { max-width: 280px; }
+  .severity-meter { height: 6px; }
 }
 
-@media (min-width: 769px) {
+/* === Small devices (phones 360px-480px) === */
+@media (min-width: 360px) and (max-width: 479px) {
+  .ni-chart { max-width: 320px; }
+  .si-chart { max-width: 320px; }
+  .zodiac-wheel { width: 240px; height: 240px; }
+  .dasha-row-header { gap: 10px; }
+  .ad-content-inner { padding-left: 48px; }
+}
+
+/* === Mobile (all phones <640px) === */
+@media (max-width: 639px) {
+  .sidebar { transform: translateX(-100%); width: 280px; }
+  .sidebar.open { transform: translateX(0); }
+  .dashboard-content { margin-left: 0 !important; padding: 12px !important; padding-top: 56px !important; }
+  .zodiac-wheel { width: 260px; height: 260px; }
+  .mobile-menu-btn { display: flex !important; }
+
+  /* Prevent hover effects on touch devices */
+  .glass-card:hover { transform: none; }
+
+  /* Stack grids for mobile */
+  .grid.grid-cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid.lg\:grid-cols-4 { grid-template-columns: repeat(2, 1fr); }
+  .grid.lg\:grid-cols-3 { grid-template-columns: 1fr; }
+  .grid.lg\:grid-cols-5 { grid-template-columns: 1fr; }
+
+  /* Dasha responsive */
+  .dasha-row-wrap { padding: 10px 12px; }
+  .ad-content-inner { padding-left: 0; padding-top: 10px; }
+  .ad-content-inner .grid { grid-template-columns: 1fr !important; }
+  .ad-item { padding: 8px 10px; }
+
+  /* Chart responsive */
+  .ni-chart { max-width: 340px; }
+  .si-chart { max-width: 340px; }
+  .chart-container { max-width: 340px; }
+
+  /* Table responsive */
+  table { font-size: 12px; }
+  th, td { padding: 6px 4px !important; }
+
+  /* Ashtakavarga bar chart */
+  .grid.grid-cols-12 { gap: 1px; }
+  .grid.grid-cols-12 .text-\[9px\] { font-size: 7px; }
+  .grid.grid-cols-12 .text-\[8px\] { font-size: 6px; }
+
+  /* Insights strength circles */
+  .grid.lg\:grid-cols-6 { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* === Tablets small (640px-767px) === */
+@media (min-width: 640px) and (max-width: 767px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .dashboard-content { margin-left: 0 !important; padding: 16px !important; padding-top: 56px !important; }
+  .mobile-menu-btn { display: flex !important; }
+  .zodiac-wheel { width: 300px; height: 300px; }
+  .ni-chart { max-width: 380px; }
+  .si-chart { max-width: 380px; }
+
+  /* Dasha responsive */
+  .ad-content-inner { padding-left: 56px; }
+
+  /* Glass card don't fly on tap */
+  .glass-card:hover { transform: none; }
+}
+
+/* === Tablets (768px-1023px) === */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .sidebar { transform: translateX(-100%); }
+  .sidebar.open { transform: translateX(0); }
+  .dashboard-content { margin-left: 0 !important; padding: 20px !important; padding-top: 56px !important; }
+  .mobile-menu-btn { display: flex !important; }
+  .zodiac-wheel { width: 340px; height: 340px; }
+  .ni-chart { max-width: 420px; }
+  .si-chart { max-width: 420px; }
+
+  /* Better grid on tablets */
+  .grid.lg\:grid-cols-5 { grid-template-columns: 1fr 1fr; }
+  .grid.lg\:grid-cols-5 > :first-child { grid-column: 1 / -1; }
+}
+
+/* === Small desktops (1024px-1279px) === */
+@media (min-width: 1024px) and (max-width: 1279px) {
   .mobile-menu-btn { display: none !important; }
+  .sidebar { transform: translateX(0); }
+  .dashboard-content { margin-left: 280px; }
+  .zodiac-wheel { width: 380px; height: 380px; }
+}
+
+/* === Desktops (1280px+) === */
+@media (min-width: 1280px) {
+  .mobile-menu-btn { display: none !important; }
+  .sidebar { transform: translateX(0); }
+  .dashboard-content { margin-left: 280px; }
+  .zodiac-wheel { width: 400px; height: 400px; }
+}
+
+/* === Large desktops (1536px+) === */
+@media (min-width: 1536px) {
+  .dashboard-content { max-width: 1400px; }
+  .ni-chart { max-width: 500px; }
+  .si-chart { max-width: 480px; }
+}
+
+/* === Ultra-wide monitors (1920px+) === */
+@media (min-width: 1920px) {
+  .dashboard-content { max-width: 1600px; }
+}
+
+/* === Touch device optimization === */
+@media (hover: none) and (pointer: coarse) {
+  .glass-card:hover { transform: none; box-shadow: none; border-color: var(--glass-border); }
+  .dasha-row-wrap:hover { background: transparent; }
+  .dasha-row-wrap.current:hover { background: rgba(168, 85, 250, 0.1); }
+  .ad-item:hover { background: transparent; }
+  .planet-badge:hover { background: rgba(168, 85, 250, 0.08); box-shadow: none; }
+  .si-cell:hover { background: rgba(15, 15, 46, 0.25); border-color: rgba(168, 85, 250, 0.2); }
+  .btn-primary:hover { transform: none; }
+  .btn-secondary:hover { transform: none; }
+  .sidebar-link { padding: 13px 20px; }
+}
+
+/* === Landscape phones (short height) === */
+@media (max-height: 500px) and (orientation: landscape) {
+  .zodiac-wheel { width: 180px; height: 180px; }
+  .ni-chart { max-width: 300px; }
+  .si-chart { max-width: 300px; }
+  .sidebar { overflow-y: auto; }
+}
+
+/* === Sidebar overlay backdrop on mobile === */
+@media (max-width: 1023px) {
+  .sidebar {
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  }
 }
 
 /* === North Indian Chart === */
@@ -778,9 +968,8 @@ html:not(.dark) .planet-badge.debilitated { color: #dc2626 !important; }
 }
 
 /* === Dasha Timeline === */
-.dasha-row {
-  display: flex;
-  align-items: center;
+.dasha-row-wrap {
+  display: block;
   padding: 12px 16px;
   border-radius: 10px;
   margin-bottom: 4px;
@@ -789,8 +978,49 @@ html:not(.dark) .planet-badge.debilitated { color: #dc2626 !important; }
   border-left: 3px solid transparent;
 }
 
-.dasha-row:hover { background: rgba(168, 85, 250, 0.06); }
-.dasha-row.current { background: rgba(168, 85, 250, 0.1); border-left-color: var(--neon-purple); }
+.dasha-row-wrap:hover { background: rgba(168, 85, 250, 0.06); }
+.dasha-row-wrap.current { background: rgba(168, 85, 250, 0.1); border-left-color: var(--neon-purple); }
+
+.dasha-row-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+}
+
+.dasha-chevron {
+  transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  flex-shrink: 0;
+}
+
+.dasha-row-wrap.expanded .dasha-chevron {
+  transform: rotate(180deg);
+}
+
+.ad-content {
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
+  opacity: 0;
+}
+
+.dasha-row-wrap.expanded .ad-content {
+  max-height: 2000px;
+  opacity: 1;
+}
+
+.ad-content-inner {
+  padding-top: 12px;
+  padding-left: 56px;
+}
+
+.ad-item {
+  transition: background 0.2s ease;
+}
+
+.ad-item:hover {
+  background: rgba(168, 85, 250, 0.08);
+}
 
 /* === Theme Toggle Animation === */
 .theme-toggle-btn {
@@ -826,7 +1056,7 @@ html:not(.dark) .planet-badge.debilitated { color: #dc2626 !important; }
     page-break-inside: avoid;
   }
 
-  .sidebar, .no-print, .mobile-menu-btn, .stars-bg { display: none !important; }
+  .sidebar, .sidebar-overlay, .no-print, .mobile-menu-btn, .stars-bg { display: none !important; }
   .dashboard-content { margin-left: 0 !important; padding: 0 !important; }
 
   /* PDF brand header */
