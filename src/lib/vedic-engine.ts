@@ -1889,10 +1889,26 @@ export function calculateBirthChart(
   for (const div of ALL_DIVISIONS) {
     // Compute divisional ascendant from the sidereal ascendant longitude
     const divAscSignIdx = div === 'd1' ? ascSignIdx : getDivisionalSign(ascSidereal, div);
+    
+    // First pass: calculate all planets' divisional signs
+    let rahuDivSign = -1;
     const divPlanets = planets.map(p => {
       const divSign = getDivisionalSign(p.siderealLongitude, div);
+      if (p.name === 'Rahu') rahuDivSign = divSign;
       return { planet: p.name, sign: SIGNS[divSign], signIndex: divSign };
     });
+    
+    // CRITICAL FIX: Ketu must ALWAYS be exactly opposite Rahu (6 signs apart)
+    // In Vedic astrology, Rahu and Ketu are shadow planets always 180° apart
+    if (rahuDivSign >= 0) {
+      const ketuCorrectSign = (rahuDivSign + 6) % 12;
+      const ketuEntry = divPlanets.find(dp => dp.planet === 'Ketu');
+      if (ketuEntry) {
+        ketuEntry.signIndex = ketuCorrectSign;
+        ketuEntry.sign = SIGNS[ketuCorrectSign];
+      }
+    }
+    
     divisionalCharts[div] = {
       planets: divPlanets,
       ascendantSignIndex: divAscSignIdx,
