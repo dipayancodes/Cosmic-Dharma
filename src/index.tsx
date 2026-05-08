@@ -259,6 +259,8 @@ const HTML_SHELL = (title: string, description: string) => `<!DOCTYPE html>
     }
   </script>
   <link href="/static/styles.css" rel="stylesheet">
+  <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-7078476777062347"
+     crossorigin="anonymous"></script>
 </head>
 <body class="bg-cosmic-900 text-white font-sans antialiased min-h-screen overflow-x-hidden">
   <div id="app"></div>
