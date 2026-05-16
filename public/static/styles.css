@@ -451,7 +451,7 @@ html:not(.dark) .chart-tooltip {
 /* === Sidebar === */
 .sidebar {
   width: 280px;
-  min-height: 100vh;
+  height: 100vh;
   background: rgba(10, 10, 26, 0.95);
   backdrop-filter: blur(20px);
   border-right: 1px solid rgba(168, 85, 250, 0.1);
@@ -460,6 +460,8 @@ html:not(.dark) .chart-tooltip {
   left: 0; top: 0;
   z-index: 40;
   overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
 .sidebar-link {
@@ -628,10 +630,10 @@ html:not(.dark) .skeleton {
   .zodiac-wheel { width: 200px; height: 200px; }
   .dasha-row-header { gap: 8px; }
   .dasha-row-header .w-10 { width: 32px; height: 32px; min-width: 32px; }
-  .ad-content-inner { padding-left: 40px; }
-  .ad-item { padding: 6px 8px; }
-  .ad-item .text-xs { font-size: 10px; }
-  .ad-item .text-\[10px\] { font-size: 9px; }
+  .dasha-detail-inner { padding-left: 40px; }
+  .dasha-sub-item { padding: 6px 8px; }
+  .dasha-sub-item .text-xs { font-size: 10px; }
+  .dasha-sub-item .text-\[10px\] { font-size: 9px; }
   .planet-badge { padding: 3px 6px; font-size: 10px; }
   .chart-container { max-width: 280px; }
   .severity-meter { height: 6px; }
@@ -643,7 +645,7 @@ html:not(.dark) .skeleton {
   .si-chart { max-width: 320px; }
   .zodiac-wheel { width: 240px; height: 240px; }
   .dasha-row-header { gap: 10px; }
-  .ad-content-inner { padding-left: 48px; }
+  .dasha-detail-inner { padding-left: 48px; }
 }
 
 /* === Mobile (all phones <640px) === */
@@ -665,9 +667,9 @@ html:not(.dark) .skeleton {
 
   /* Dasha responsive */
   .dasha-row-wrap { padding: 10px 12px; }
-  .ad-content-inner { padding-left: 0; padding-top: 10px; }
-  .ad-content-inner .grid { grid-template-columns: 1fr !important; }
-  .ad-item { padding: 8px 10px; }
+  .dasha-detail-inner { padding-left: 0; padding-top: 10px; }
+  .dasha-detail-inner .grid { grid-template-columns: 1fr !important; }
+  .dasha-sub-item { padding: 8px 10px; }
 
   /* Chart responsive */
   .ni-chart { max-width: 340px; }
@@ -698,7 +700,7 @@ html:not(.dark) .skeleton {
   .si-chart { max-width: 380px; }
 
   /* Dasha responsive */
-  .ad-content-inner { padding-left: 56px; }
+  .dasha-detail-inner { padding-left: 56px; }
 
   /* Glass card don't fly on tap */
   .glass-card:hover { transform: none; }
@@ -752,7 +754,7 @@ html:not(.dark) .skeleton {
   .glass-card:hover { transform: none; box-shadow: none; border-color: var(--glass-border); }
   .dasha-row-wrap:hover { background: transparent; }
   .dasha-row-wrap.current:hover { background: rgba(168, 85, 250, 0.1); }
-  .ad-item:hover { background: transparent; }
+  .dasha-sub-item:hover { background: transparent; }
   .planet-badge:hover { background: rgba(168, 85, 250, 0.08); box-shadow: none; }
   .si-cell:hover { background: rgba(15, 15, 46, 0.25); border-color: rgba(168, 85, 250, 0.2); }
   .btn-primary:hover { transform: none; }
@@ -997,28 +999,28 @@ html:not(.dark) .planet-badge.debilitated { color: #dc2626 !important; }
   transform: rotate(180deg);
 }
 
-.ad-content {
+.dasha-detail {
   max-height: 0;
   overflow: hidden;
   transition: max-height 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.3s ease;
   opacity: 0;
 }
 
-.dasha-row-wrap.expanded .ad-content {
+.dasha-row-wrap.expanded .dasha-detail {
   max-height: 2000px;
   opacity: 1;
 }
 
-.ad-content-inner {
+.dasha-detail-inner {
   padding-top: 12px;
   padding-left: 56px;
 }
 
-.ad-item {
+.dasha-sub-item {
   transition: background 0.2s ease;
 }
 
-.ad-item:hover {
+.dasha-sub-item:hover {
   background: rgba(168, 85, 250, 0.08);
 }
 

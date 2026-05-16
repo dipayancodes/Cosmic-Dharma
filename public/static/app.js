@@ -378,7 +378,7 @@ function renderDashboard() {
   </button>
   <div class="sidebar-overlay ${sidebarOpen ? 'active' : ''}" id="sidebarOverlay" onclick="window.__toggleSidebar()"></div>
   <aside class="sidebar ${sidebarOpen ? 'open' : ''}" id="sidebar">
-    <div class="p-6 border-b border-purple-500/10">
+    <div class="p-6 border-b border-purple-500/10 flex-shrink-0">
       <div class="flex items-center gap-3 mb-4 cursor-pointer" onclick="window.__nav('landing')">
         <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-purple-500 to-cyan-400 flex items-center justify-center text-lg font-bold">\u2726</div>
         <span class="font-display font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">Cosmic Dharma</span>
@@ -389,15 +389,17 @@ function renderDashboard() {
         <div class="text-xs text-white/30">${c.placeOfBirth}</div>
       </div>
     </div>
-    <div class="py-4">
-      <div class="px-5 text-[10px] text-white/20 font-semibold uppercase tracking-widest mb-2">Analysis</div>
-      ${tabs.map(t => `<a class="sidebar-link ${currentDashTab === t.id ? 'active' : ''}" onclick="window.__setDashTab('${t.id}')"><i class="fas ${t.icon}"></i><span>${t.label}</span></a>`).join('')}
-    </div>
-    <div class="py-4 border-t border-purple-500/10">
-      <div class="px-5 text-[10px] text-white/20 font-semibold uppercase tracking-widest mb-2">Actions</div>
-      <a class="sidebar-link" onclick="window.__toggleTheme()"><i class="fas ${darkMode ? 'fa-sun' : 'fa-moon'}"></i><span>${darkMode ? 'Light Mode' : 'Dark Mode'}</span></a>
-      <a class="sidebar-link" onclick="window.__downloadPDF()"><i class="fas fa-file-pdf"></i><span>Download PDF</span></a>
-      <a class="sidebar-link" onclick="window.__nav('generate')"><i class="fas fa-plus"></i><span>New Chart</span></a>
+    <div class="flex-1 overflow-y-auto" style="min-height:0">
+      <div class="py-4">
+        <div class="px-5 text-[10px] text-white/20 font-semibold uppercase tracking-widest mb-2">Analysis</div>
+        ${tabs.map(t => `<a class="sidebar-link ${currentDashTab === t.id ? 'active' : ''}" onclick="window.__setDashTab('${t.id}')"><i class="fas ${t.icon}"></i><span>${t.label}</span></a>`).join('')}
+      </div>
+      <div class="py-4 border-t border-purple-500/10">
+        <div class="px-5 text-[10px] text-white/20 font-semibold uppercase tracking-widest mb-2">Actions</div>
+        <a class="sidebar-link" onclick="window.__toggleTheme()"><i class="fas ${darkMode ? 'fa-sun' : 'fa-moon'}"></i><span>${darkMode ? 'Light Mode' : 'Dark Mode'}</span></a>
+        <a class="sidebar-link" onclick="window.__downloadPDF()"><i class="fas fa-file-pdf"></i><span>Download PDF</span></a>
+        <a class="sidebar-link" onclick="window.__nav('generate')"><i class="fas fa-plus"></i><span>New Chart</span></a>
+      </div>
     </div>
   </aside>
   <div class="dashboard-content min-h-screen">
@@ -1001,11 +1003,11 @@ function renderDashaTab() {
               </div>
               <i class="fas fa-chevron-down dasha-chevron text-white/20 text-xs"></i>
             </div>
-            <div class="ad-content">
-              <div class="ad-content-inner">
+            <div class="dasha-detail">
+              <div class="dasha-detail-inner">
                 <div class="text-xs text-white/30 mb-2 font-medium">Antardasha Periods:</div>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-1">${d.antardasha.map(a => `
-                  <div class="ad-item flex items-center justify-between px-3 py-2 rounded-lg ${a.isCurrent?'bg-cyan-500/10 border border-cyan-500/20':'bg-white/[0.02]'}">
+                  <div class="dasha-sub-item flex items-center justify-between px-3 py-2 rounded-lg ${a.isCurrent?'bg-cyan-500/10 border border-cyan-500/20':'bg-white/[0.02]'}">
                     <div class="flex items-center gap-2"><span class="text-xs font-bold" style="color:${PLANET_COLORS[a.planet]}">${PLANET_ABBR[a.planet]}</span><span class="text-xs ${a.isCurrent?'text-cyan-400 font-medium':'text-white/50'}">${a.planet}</span>${a.isCurrent?'<span class="text-[10px] text-cyan-400">\u25CF</span>':''}</div>
                     <span class="text-[10px] text-white/30">${a.startDate} \u2192 ${a.endDate}</span>
                   </div>
