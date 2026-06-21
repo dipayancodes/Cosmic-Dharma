@@ -17,6 +17,20 @@ let sidebarOpen = false;
 let darkMode = true;
 let collapsedSections = {};
 let expandedDashas = {};
+let selectedCountry = 'IN';
+
+const CURRENCIES = {
+  IN: { symbol: '\u20B9', code: 'INR', name: 'India', free: '0', pro: '499' },
+  US: { symbol: '$', code: 'USD', name: 'United States', free: '0', pro: '5.99' },
+  GB: { symbol: '\u00A3', code: 'GBP', name: 'United Kingdom', free: '0', pro: '4.99' },
+  EU: { symbol: '\u20AC', code: 'EUR', name: 'Europe', free: '0', pro: '5.49' },
+  CA: { symbol: 'C$', code: 'CAD', name: 'Canada', free: '0', pro: '7.99' },
+  AU: { symbol: 'A$', code: 'AUD', name: 'Australia', free: '0', pro: '8.99' },
+  JP: { symbol: '\u00A5', code: 'JPY', name: 'Japan', free: '0', pro: '899' },
+  SG: { symbol: 'S$', code: 'SGD', name: 'Singapore', free: '0', pro: '7.99' },
+  AE: { symbol: 'AED', code: 'AED', name: 'UAE', free: '0', pro: '21.99' },
+  BD: { symbol: '\u09F3', code: 'BDT', name: 'Bangladesh', free: '0', pro: '599' },
+};
 
 const SIGNS = ['Aries','Taurus','Gemini','Cancer','Leo','Virgo','Libra','Scorpio','Sagittarius','Capricorn','Aquarius','Pisces'];
 const SIGN_SYMBOLS = ['\u2648','\u2649','\u264A','\u264B','\u264C','\u264D','\u264E','\u264F','\u2650','\u2651','\u2652','\u2653'];
@@ -97,6 +111,8 @@ function renderNav(transparent = false) {
           <span class="font-display text-lg font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">Cosmic Dharma</span>
         </a>
         <div class="flex items-center gap-3">
+          <a href="/about" class="hidden sm:inline text-sm text-white/50 hover:text-white transition-colors">About</a>
+          <a href="/contact" class="hidden sm:inline text-sm text-white/50 hover:text-white transition-colors">Contact</a>
           <button onclick="window.__toggleTheme()" class="theme-toggle-btn w-9 h-9 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/5 transition-all" title="Toggle theme">
             <i class="fas ${darkMode ? 'fa-sun' : 'fa-moon'}"></i>
           </button>
@@ -225,11 +241,17 @@ function renderLanding() {
       <div class="text-center mb-16">
         <h2 class="font-display text-4xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">Choose Your Path</h2>
         <p class="text-white/40 text-lg">Start free. Upgrade when the cosmos align.</p>
+        <div class="mt-6 inline-flex items-center gap-3 px-4 py-2 rounded-full border border-purple-500/20 bg-purple-500/5">
+          <i class="fas fa-globe text-purple-400 text-sm"></i>
+          <select id="country-selector" onchange="window.__setCountry(this.value)" class="bg-transparent text-sm text-white/70 border-none outline-none cursor-pointer" style="-webkit-appearance:none;appearance:none">
+            ${Object.entries(CURRENCIES).map(([code, cur]) => '<option value="' + code + '"' + (code === selectedCountry ? ' selected' : '') + ' style="background:#1a1a2e;color:#e2e8f0">' + cur.name + ' (' + cur.code + ')</option>').join('')}
+          </select>
+        </div>
       </div>
       <div class="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
         <div class="glass-card pricing-card p-8">
           <div class="text-sm text-white/40 font-medium mb-2">FREE</div>
-          <div class="font-display text-4xl font-bold mb-1">\u20B90</div>
+          <div class="font-display text-4xl font-bold mb-1">${CURRENCIES[selectedCountry].symbol}${CURRENCIES[selectedCountry].free}</div>
           <div class="text-white/30 text-sm mb-6">Forever free</div>
           <ul class="space-y-3 mb-8">
             ${['Full birth chart (D1)','Basic planetary positions','Nakshatra details','Dosha detection','Dasha overview','3 charts per month'].map(f => `<li class="flex items-center gap-3 text-sm text-white/60"><i class="fas fa-check text-green-400 text-xs"></i>${f}</li>`).join('')}
@@ -239,7 +261,7 @@ function renderLanding() {
         <div class="glass-card pricing-card featured p-8 relative">
           <div class="absolute top-4 right-4 px-3 py-1 rounded-full bg-gradient-to-r from-purple-500 to-cyan-500 text-xs font-bold">PRO</div>
           <div class="text-sm text-purple-400 font-medium mb-2">PRO</div>
-          <div class="font-display text-4xl font-bold mb-1">\u20B9499<span class="text-lg text-white/30">/mo</span></div>
+          <div class="font-display text-4xl font-bold mb-1">${CURRENCIES[selectedCountry].symbol}${CURRENCIES[selectedCountry].pro}<span class="text-lg text-white/30">/mo</span></div>
           <div class="text-white/30 text-sm mb-6">Unlock the cosmos</div>
           <ul class="space-y-3 mb-8">
             ${['Everything in Free','All divisional charts','AI-powered insights engine','Compatibility matching','Marriage & career timing','Personalized remedies','Annual horoscope PDF','Unlimited charts','Priority support'].map(f => `<li class="flex items-center gap-3 text-sm text-white/60"><i class="fas fa-check text-purple-400 text-xs"></i>${f}</li>`).join('')}
@@ -249,20 +271,9 @@ function renderLanding() {
       </div>
     </div>
   </section>
-  <footer class="border-t border-purple-500/10 py-12 px-4">
-    <div class="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
-      <div class="flex items-center gap-3">
-        <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-cyan-400 flex items-center justify-center text-sm font-bold">\u2726</div>
-        <span class="font-display font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">Cosmic Dharma</span>
-      </div>
-      <div class="text-white/30 text-sm">\u00a9 2026 Cosmic Dharma. Ancient wisdom, modern technology.</div>
-      <div class="flex gap-4 text-white/30">
-        <a href="#" class="hover:text-purple-400 transition-colors"><i class="fab fa-twitter"></i></a>
-        <a href="#" class="hover:text-purple-400 transition-colors"><i class="fab fa-instagram"></i></a>
-        <a href="#" class="hover:text-purple-400 transition-colors"><i class="fab fa-github"></i></a>
-      </div>
-    </div>
-  </footer>`;
+  ${renderSEOContent()}
+  ${renderFAQSection()}
+  ${renderFullFooter()}`;
 }
 
 function renderZodiacWheel() {
@@ -279,6 +290,133 @@ function renderZodiacWheel() {
   });
   html += '</div>';
   return html;
+}
+
+// ============================================================
+// SEO CONTENT SECTION
+// ============================================================
+function renderSEOContent() {
+  return `
+  <section class="py-24 px-4" id="seo-content">
+    <div class="max-w-4xl mx-auto">
+      <div class="glass-card p-8 sm:p-12">
+        <h2 class="font-display text-3xl sm:text-4xl font-bold mb-6 bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">Vedic Astrology: Your Gateway to Cosmic Wisdom</h2>
+        <div class="space-y-4 text-white/50 leading-relaxed text-sm">
+          <p>Vedic astrology, also known as <strong class="text-white/70">Jyotish Shastra</strong> or the "Science of Light," is one of the oldest and most comprehensive astrological systems in the world, with roots dating back over 5,000 years to the ancient Vedic scriptures of India. Unlike Western tropical astrology, Vedic astrology uses the <strong class="text-white/70">sidereal zodiac</strong>, which is based on the actual, observable positions of stars and constellations in the sky. This fundamental difference makes Vedic astrology chart calculations astronomically precise, as they account for the slow drift known as the <strong class="text-white/70">precession of equinoxes</strong> through the application of the Lahiri Ayanamsha correction \u2014 currently approximately 24 degrees.</p>
+          <p>At the heart of every <strong class="text-white/70">Vedic astrology birth chart</strong> (also called a Kundli or Janma Patri) lies the Ascendant, or Lagna \u2014 the zodiac sign rising on the eastern horizon at the exact moment of your birth. The Ascendant sets the framework for the entire horoscope, determining the placement of the twelve houses (Bhavas) that govern different areas of life: personality, wealth, siblings, home, children, health, partnerships, transformation, fortune, career, gains, and spiritual liberation. Combined with the positions of the nine Vedic planets \u2014 Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn, Rahu, and Ketu \u2014 your Vedic astrology birth chart becomes a unique cosmic fingerprint that reveals your life\u2019s potential, challenges, and dharmic path.</p>
+          <p>One of the most powerful features unique to Vedic astrology is the <strong class="text-white/70">Nakshatra system</strong> \u2014 27 lunar mansions that divide the zodiac into finer segments of 13 degrees and 20 minutes each. Each Nakshatra has its own ruling deity, planetary lord, and symbolic meaning, offering a layer of personality insight far more nuanced than zodiac signs alone. Your birth Nakshatra (determined by the Moon\u2019s position) is also the starting point for the <strong class="text-white/70">Vimshottari Dasha</strong> system \u2014 a sophisticated planetary period timeline spanning 120 years that maps out the timing of major life events, opportunities, and challenges with remarkable precision.</p>
+          <p>Cosmic Dharma brings this ancient wisdom into the modern era with our <strong class="text-white/70">free Vedic astrology birth chart calculator online</strong>. Our platform uses precise astronomical algorithms with the Lahiri Ayanamsha to compute your sidereal planetary positions, generate interactive North and South Indian chart formats, and produce all 15 Parashari divisional charts (D1 through D60) \u2014 from the foundational Rashi chart to the deeply karmic Shastiamsa. Whether you are exploring your Navamsa (D9) chart for marriage insights or your Dashamsa (D10) for career guidance, every calculation is performed with mathematical precision on our edge computing infrastructure.</p>
+          <p>Beyond charts, Cosmic Dharma offers comprehensive <strong class="text-white/70">Dosha analysis</strong> (Mangalik, Kaal Sarp, and Pitra Dosha) with severity ratings and modern remedial suggestions, <strong class="text-white/70">Sade Sati tracking</strong> for Saturn\u2019s 7.5-year transit cycle, <strong class="text-white/70">Shadbala</strong> (six-fold planetary strength analysis), <strong class="text-white/70">Ashtakavarga</strong> bindu calculations for transit predictions, <strong class="text-white/70">Yoga detection</strong> for special planetary combinations like Gaja Kesari and Pancha Mahapurusha, and <strong class="text-white/70">Arudha Pada</strong> analysis from the Jaimini system. Our AI-powered insight engine synthesizes all of these data points to deliver personalized readings on personality, career, relationships, finances, and karmic patterns.</p>
+          <p>Whether you are a seasoned Jyotish practitioner seeking a reliable <strong class="text-white/70">Vedic astrology chart calculator</strong>, a curious beginner wanting to understand your <strong class="text-white/70">Vedic astrology signs</strong>, or someone looking for a <strong class="text-white/70">free Vedic astrology chart</strong> with professional-grade accuracy \u2014 Cosmic Dharma is your comprehensive, modern platform for exploring the cosmos within. Start your journey today by generating your Kundli and discover the ancient wisdom written in your stars.</p>
+        </div>
+      </div>
+    </div>
+  </section>`;
+}
+
+// ============================================================
+// FAQ SECTION
+// ============================================================
+const FAQ_DATA = [
+  { q: 'Is Vedic astrology most accurate?', a: 'Vedic astrology is considered highly accurate by many practitioners because it uses the sidereal zodiac system based on actual star positions, with the Lahiri Ayanamsha correction accounting for the precession of equinoxes. This makes planetary positions more astronomically precise. However, accuracy also depends on exact birth time and the skill of interpretation.' },
+  { q: 'How do I know my Vedic astrology?', a: 'To know your Vedic astrology profile, you need your exact date of birth, time of birth, and place of birth. Using these details, a Vedic astrology calculator like Cosmic Dharma generates your complete birth chart (Kundli) showing your Ascendant (Lagna), Moon sign (Rashi), Sun sign, Nakshatra, and all planetary positions.' },
+  { q: 'What is happening in Vedic astrology right now?', a: 'Current planetary transits are constantly shifting as planets move through different signs and nakshatras. Cosmic Dharma provides real-time transit information using sidereal calculations. Generate your birth chart and check the Transits tab to see how current movements affect your personal chart.' },
+  { q: 'What exactly is Vedic astrology?', a: 'Vedic astrology (Jyotish Shastra) is an ancient Indian system dating back over 5,000 years. It uses the sidereal zodiac based on actual star positions, incorporating unique concepts like Nakshatras (27 lunar mansions), Vimshottari Dasha (planetary periods), divisional charts (D1\u2013D60), and Doshas. It aims to understand one\u2019s dharma and karma.' },
+  { q: 'Is astrology 100% correct?', a: 'No astrological system claims 100% accuracy. Vedic astrology provides a framework for understanding planetary influences and life patterns. Its accuracy depends on precise birth details (especially exact birth time), the precision of calculations like Lahiri Ayanamsha, and the depth of interpretation.' },
+  { q: 'What is Vedic astrology?', a: 'Vedic astrology, known as Jyotish or the "Science of Light," is the traditional Hindu system of astrology from ancient India. It uses the sidereal zodiac with Lahiri Ayanamsha for precession correction and the Whole Sign house system. Key components include Rashi, Nakshatra, Graha, Bhava, Dasha, and Yoga.' },
+  { q: 'Is Vedic astrology more accurate?', a: 'Many practitioners consider Vedic astrology more accurate because it uses the sidereal zodiac aligned with actual astronomical constellation positions, accounting for the ~24-degree precession drift. Additionally, tools like Nakshatras, Vimshottari Dasha, and divisional charts provide deeper analytical layers.' },
+  { q: 'What is my Vedic astrology sign?', a: 'Your Vedic sign is determined by the Moon\u2019s position in a zodiac sign (Rashi) at birth using the sidereal zodiac. This often differs from your Western sun sign. Use Cosmic Dharma\u2019s free calculator \u2014 enter your birth date, time, and place to get your Moon sign, Sun sign, and Ascendant.' },
+  { q: 'What is the difference between Western and Vedic astrology?', a: 'Key differences: (1) Western uses tropical zodiac (fixed to seasons), Vedic uses sidereal (fixed to stars); (2) Western focuses on Sun sign, Vedic emphasizes Moon sign and Ascendant; (3) Vedic has unique Vimshottari Dasha system; (4) Vedic uses 27 Nakshatras and up to 60 divisional charts; (5) Traditional Vedic uses 9 planets including Rahu/Ketu.' },
+  { q: 'How to read a Vedic astrology chart?', a: 'Reading involves: (1) Identify the Ascendant (Lagna); (2) Note planetary positions in signs and houses; (3) Check planetary dignities; (4) Analyze house lords; (5) Look for Yogas; (6) Check each planet\u2019s Nakshatra; (7) Examine divisional charts; (8) Review Vimshottari Dasha for event timing.' },
+  { q: 'Is Vedic astrology accurate?', a: 'Vedic astrology\u2019s accuracy is supported by astronomically precise sidereal calculations. The Lahiri Ayanamsha ensures positions match actual star positions. Combined with exact birth time, Vedic charts can provide remarkably detailed life insights. Cosmic Dharma uses precise Meeus-algorithm calculations for maximum accuracy.' },
+  { q: 'What is Nakshatra in Vedic astrology?', a: 'Nakshatras are the 27 lunar mansions, each spanning 13\u00b020\u2032 of the zodiac. They offer finer division than the 12 signs for more precise analysis. Each has a ruling deity, planetary lord, and four padas (quarters). Your birth Nakshatra determines your Dasha starting period and reveals deep personality traits.' },
+  { q: 'How to calculate Moon sign in Vedic astrology?', a: 'Your Vedic Moon sign is calculated by determining the Moon\u2019s sidereal longitude at your exact birth time, then subtracting the Ayanamsha (~24\u00b0). The resulting position falls in one of 12 signs. This requires precise calculations due to the Moon\u2019s rapid movement (~13\u00b0/day). Use Cosmic Dharma for instant, accurate results.' },
+  { q: 'What is my sign in Vedic astrology?', a: 'In Vedic astrology you have three primary signs: (1) Moon Sign (Rashi) \u2014 most important; (2) Sun Sign \u2014 often different from Western; (3) Ascendant (Lagna) \u2014 the rising sign at birth. Generate your free chart on Cosmic Dharma to discover all three.' },
+  { q: 'Which is more accurate \u2014 Vedic or Western astrology?', a: 'Both have strengths. Vedic is considered more astronomically accurate since the sidereal zodiac matches actual star positions. The ~24\u00b0 Ayanamsha difference means your Vedic sign may differ from Western. Vedic also offers unique predictive tools like Dasha for timing events. Many use both systems together.' },
+  { q: 'Is Vedic astrology sidereal?', a: 'Yes, Vedic astrology uses the sidereal zodiac based on actual star positions. The Lahiri Ayanamsha (~24\u00b0) accounts for the precession of equinoxes \u2014 Earth\u2019s axial wobble causing tropical and sidereal zodiacs to drift apart by about 1\u00b0 every 72 years.' },
+  { q: 'How to learn Vedic astrology?', a: 'Start with: (1) The 12 signs and their characteristics; (2) The 9 Vedic planets and significations; (3) The 12 houses; (4) Basic dignities (exaltation, debilitation); (5) The 27 Nakshatras; (6) North and South Indian chart formats. Practice by generating charts on Cosmic Dharma and studying the interpretations.' },
+  { q: 'How to calculate Upapada Lagna in Vedic astrology?', a: 'Upapada Lagna (UL) is calculated from the 12th house: find the 12th house lord, count the same distance from that lord\u2019s position. The resulting sign is your UL, revealing spouse and marriage details. Cosmic Dharma calculates UL and all Arudha Padas automatically in the Arudha Padas tab.' },
+  { q: 'What is Pada in Vedic astrology?', a: 'Pada has two meanings: (1) Nakshatra Pada \u2014 each Nakshatra is divided into 4 quarters of 3\u00b020\u2032 each, totaling 108 padas mapping to the Navamsa chart; (2) Arudha Pada \u2014 the manifested image of a house using Jaimini principles, showing how life areas appear to the outside world.' },
+  { q: 'How to calculate Dasha periods in Vedic astrology?', a: 'Vimshottari Dasha starts from Moon\u2019s Nakshatra at birth. The remaining portion of the Nakshatra determines the first Mahadasha balance. Subsequent periods follow: Sun(6y), Moon(10y), Mars(7y), Rahu(18y), Jupiter(16y), Saturn(19y), Mercury(17y), Ketu(7y), Venus(20y) \u2014 totaling 120 years.' },
+  { q: 'How to read Vedic astrology birth chart?', a: 'Start with the Ascendant for the house framework. Check Moon sign for emotional nature. Examine planets per house. Look at aspects (Drishti). Check for Yogas. Analyze Navamsa (D9) for marriage. Study the current Dasha for timing. Review Doshas for challenges. Cosmic Dharma provides all these automatically.' }
+];
+
+function renderFAQSection() {
+  return `
+  <section class="py-24 px-4" id="faq">
+    <div class="max-w-4xl mx-auto">
+      <div class="text-center mb-16">
+        <h2 class="font-display text-4xl font-bold mb-4 bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">Frequently Asked Questions</h2>
+        <p class="text-white/40 text-lg">Everything you need to know about Vedic astrology</p>
+      </div>
+      <div class="space-y-3" id="faq-accordion">
+        ${FAQ_DATA.map((faq, i) => `
+          <div class="glass-card overflow-hidden">
+            <button class="w-full flex items-center justify-between p-5 text-left" onclick="window.__toggleFaq(${i})">
+              <h3 class="font-display text-sm sm:text-base font-semibold pr-4">${faq.q}</h3>
+              <i class="fas fa-chevron-down text-purple-400/50 text-xs transition-transform" id="faq-icon-${i}"></i>
+            </button>
+            <div class="px-5 overflow-hidden transition-all duration-300" id="faq-answer-${i}" style="max-height:0">
+              <p class="text-white/50 text-sm leading-relaxed pb-5">${faq.a}</p>
+            </div>
+          </div>
+        `).join('')}
+      </div>
+    </div>
+  </section>`;
+}
+
+// ============================================================
+// FULL FOOTER
+// ============================================================
+function renderFullFooter() {
+  return `
+  <footer class="border-t border-purple-500/10 py-16 px-4">
+    <div class="max-w-7xl mx-auto">
+      <div class="grid md:grid-cols-4 gap-10 mb-12">
+        <div>
+          <div class="flex items-center gap-3 mb-4">
+            <div class="w-8 h-8 rounded-lg bg-gradient-to-br from-purple-500 to-cyan-400 flex items-center justify-center text-sm font-bold">\u2726</div>
+            <span class="font-display font-bold bg-gradient-to-r from-purple-400 to-cyan-400 bg-clip-text text-transparent">Cosmic Dharma</span>
+          </div>
+          <p class="text-white/30 text-sm leading-relaxed mb-4">Premium Vedic astrology platform powered by the Sidereal system with Lahiri Ayanamsha. Ancient wisdom meets modern technology.</p>
+          <p class="text-white/20 text-xs">Created by <strong class="text-purple-400/60">Dipayan Ghosh</strong></p>
+        </div>
+        <div>
+          <h4 class="font-display font-bold text-sm mb-4 text-white/60">Platform</h4>
+          <ul class="space-y-2 text-sm text-white/30">
+            <li><a href="/" onclick="event.preventDefault();window.__nav('landing')" class="hover:text-purple-400 transition-colors">Home</a></li>
+            <li><a href="/generate" onclick="event.preventDefault();window.__nav('generate')" class="hover:text-purple-400 transition-colors">Generate Kundli</a></li>
+            <li><a href="/about" class="hover:text-purple-400 transition-colors">About Us</a></li>
+            <li><a href="/contact" class="hover:text-purple-400 transition-colors">Contact Us</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-display font-bold text-sm mb-4 text-white/60">Legal</h4>
+          <ul class="space-y-2 text-sm text-white/30">
+            <li><a href="/privacy" class="hover:text-purple-400 transition-colors">Privacy Policy</a></li>
+            <li><a href="/terms" class="hover:text-purple-400 transition-colors">Terms & Conditions</a></li>
+          </ul>
+        </div>
+        <div>
+          <h4 class="font-display font-bold text-sm mb-4 text-white/60">Connect</h4>
+          <div class="flex gap-4 text-white/30 mb-4">
+            <a href="#" class="hover:text-purple-400 transition-colors"><i class="fab fa-twitter text-lg"></i></a>
+            <a href="#" class="hover:text-purple-400 transition-colors"><i class="fab fa-instagram text-lg"></i></a>
+            <a href="#" class="hover:text-purple-400 transition-colors"><i class="fab fa-github text-lg"></i></a>
+          </div>
+          <div class="text-xs text-white/20 p-3 rounded-lg bg-purple-500/5 border border-purple-500/10">
+            <i class="fas fa-om text-purple-400/40 mr-1"></i>
+            Powered by Vedic Sidereal System \u00b7 Lahiri Ayanamsha
+          </div>
+        </div>
+      </div>
+      <div class="border-t border-purple-500/10 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div class="text-white/20 text-xs">\u00a9 2026 Cosmic Dharma. All rights reserved. Created by Dipayan Ghosh.</div>
+        <div class="text-white/15 text-xs">Powered by Vedic Sidereal System \u00b7 Lahiri Ayanamsha</div>
+      </div>
+    </div>
+  </footer>`;
 }
 
 // ============================================================
@@ -1593,6 +1731,27 @@ window.__toggleTheme = () => {
 
 window.__downloadPDF = () => { window.print(); };
 
+window.__setCountry = (code) => {
+  if (CURRENCIES[code]) {
+    selectedCountry = code;
+    render();
+  }
+};
+
+window.__toggleFaq = (idx) => {
+  const answer = document.getElementById('faq-answer-' + idx);
+  const icon = document.getElementById('faq-icon-' + idx);
+  if (!answer) return;
+  const isOpen = answer.style.maxHeight && answer.style.maxHeight !== '0px';
+  // Close all others
+  document.querySelectorAll('[id^="faq-answer-"]').forEach(function(el) { el.style.maxHeight = '0px'; });
+  document.querySelectorAll('[id^="faq-icon-"]').forEach(function(el) { el.style.transform = 'rotate(0deg)'; });
+  if (!isOpen) {
+    answer.style.maxHeight = answer.scrollHeight + 'px';
+    if (icon) icon.style.transform = 'rotate(180deg)';
+  }
+};
+
 window.__loadDemo = () => {
   const form = document.getElementById('kundliForm');
   if (form) {
@@ -1609,10 +1768,15 @@ window.__loadDemo = () => {
 
 // === Init ===
 const path = window.location.pathname;
-if (path === '/dashboard' && !currentChart) currentPage = 'generate';
-else if (path === '/generate') currentPage = 'generate';
-else if (path === '/dashboard') currentPage = 'dashboard';
-else currentPage = 'landing';
-render();
+const MPA_ROUTES = ['/privacy', '/terms', '/about', '/contact'];
+if (MPA_ROUTES.includes(path)) {
+  // MPA pages are server-rendered — do not render SPA
+} else {
+  if (path === '/dashboard' && !currentChart) currentPage = 'generate';
+  else if (path === '/generate') currentPage = 'generate';
+  else if (path === '/dashboard') currentPage = 'dashboard';
+  else currentPage = 'landing';
+  render();
+}
 
 })();
