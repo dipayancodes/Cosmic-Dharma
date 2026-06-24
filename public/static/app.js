@@ -461,6 +461,14 @@ function renderGenerate() {
             <input type="text" id="inp-place" class="cosmic-input" placeholder="e.g., Mumbai, India" required autocomplete="off">
             <div id="place-suggestions" class="hidden mt-2 glass-card-static max-h-48 overflow-y-auto rounded-xl"></div>
           </div>
+          <div>
+            <label class="block text-sm font-medium text-white/60 mb-2">Timezone <span class="text-white/30">(auto-detected from birthplace)</span></label>
+            <div class="relative">
+              <input type="text" id="inp-tz-display" class="cosmic-input pr-10" value="Select a birthplace first" disabled style="opacity:0.6;cursor:not-allowed">
+              <div class="absolute right-3 top-1/2 -translate-y-1/2"><i class="fas fa-lock text-purple-400/40 text-xs"></i></div>
+            </div>
+            <p class="text-xs text-white/25 mt-1.5"><i class="fas fa-info-circle mr-1"></i>Timezone is locked to your birthplace for accurate calculations. Enter your birth time as local time at the birthplace.</p>
+          </div>
           <input type="hidden" id="inp-lat" value="">
           <input type="hidden" id="inp-lng" value="">
           <input type="hidden" id="inp-tz" value="5.5">
@@ -468,7 +476,7 @@ function renderGenerate() {
             <div class="flex items-start gap-3">
               <i class="fas fa-info-circle text-purple-400 mt-0.5"></i>
               <div>
-                <strong class="text-white/60">Accuracy tip:</strong> Exact birth time is essential for an accurate Ascendant (Lagna). If unknown, 12:00 PM is used as default. Check your birth certificate for the precise time.
+                <strong class="text-white/60">Accuracy tip:</strong> Enter your birth time as <strong class="text-white/60">local time at your birthplace</strong>. The timezone is auto-detected from your selected location. If exact time is unknown, 12:00 PM is used as default. Check your birth certificate for the precise time.
               </div>
             </div>
           </div>
@@ -1641,11 +1649,36 @@ function renderSuggestions(results, container, isApi) {
   }).join('');
 }
 
+function formatTimezoneDisplay(tz) {
+  const sign = tz >= 0 ? '+' : '-';
+  const abs = Math.abs(tz);
+  const hours = Math.floor(abs);
+  const mins = Math.round((abs - hours) * 60);
+  const tzStr = 'UTC' + sign + hours + (mins > 0 ? ':' + String(mins).padStart(2, '0') : ':00');
+  // Common timezone abbreviation lookup
+  const TZ_NAMES = {
+    '5.5': 'IST', '0': 'GMT', '1': 'CET', '2': 'EET', '3': 'MSK',
+    '3.5': 'IRST', '4': 'GST', '4.5': 'AFT', '5': 'PKT', '5.75': 'NPT',
+    '6': 'BST', '6.5': 'MMT', '7': 'ICT', '8': 'CST/SGT', '9': 'JST/KST',
+    '9.5': 'ACST', '10': 'AEST', '11': 'SBT', '12': 'NZST',
+    '-3': 'ART', '-3.5': 'NST', '-4': 'AST', '-5': 'EST', '-6': 'CST',
+    '-7': 'MST', '-8': 'PST', '-9': 'AKST', '-10': 'HST'
+  };
+  const abbr = TZ_NAMES[String(tz)] || '';
+  return abbr ? tzStr + ' (' + abbr + ')' : tzStr;
+}
+
 window.__selectCity = (name, lat, lng, tz) => {
   document.getElementById('inp-place').value = name;
   document.getElementById('inp-lat').value = lat;
   document.getElementById('inp-lng').value = lng;
   document.getElementById('inp-tz').value = tz;
+  // Update visible timezone display
+  const tzDisplay = document.getElementById('inp-tz-display');
+  if (tzDisplay) {
+    tzDisplay.value = formatTimezoneDisplay(tz);
+    tzDisplay.style.opacity = '1';
+  }
   document.getElementById('place-suggestions').classList.add('hidden');
 };
 
@@ -1665,12 +1698,18 @@ async function handleFormSubmit(e) {
     const city = CITIES.find(c => c.name.toLowerCase().includes(place.toLowerCase()));
     if (city) {
       lat = city.lat; lng = city.lng; tz = city.tz;
+      // Also update the visible timezone
+      const tzDisplay = document.getElementById('inp-tz-display');
+      if (tzDisplay) { tzDisplay.value = formatTimezoneDisplay(tz); tzDisplay.style.opacity = '1'; }
     } else {
       // Try API geocode
       try {
         const results = await fetchGeocodeResults(place);
         if (results.length > 0) {
           lat = results[0].lat; lng = results[0].lng; tz = results[0].tz;
+          // Also update the visible timezone
+          const tzDisplay = document.getElementById('inp-tz-display');
+          if (tzDisplay) { tzDisplay.value = formatTimezoneDisplay(tz); tzDisplay.style.opacity = '1'; }
         } else {
           alert('Could not find location. Please select a place from the suggestions dropdown.');
           return;
@@ -1762,6 +1801,8 @@ window.__loadDemo = () => {
     document.getElementById('inp-lat').value = '19.076';
     document.getElementById('inp-lng').value = '72.8777';
     document.getElementById('inp-tz').value = '5.5';
+    var tzDisplay = document.getElementById('inp-tz-display');
+    if (tzDisplay) { tzDisplay.value = formatTimezoneDisplay(5.5); tzDisplay.style.opacity = '1'; }
     form.dispatchEvent(new Event('submit'));
   }
 };
