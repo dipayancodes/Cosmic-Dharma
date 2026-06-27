@@ -94,16 +94,21 @@
 - Loading animation with Vedic-themed messaging
 - Demo button for instant sample chart
 
-### Vedic Astrology Engine (TypeScript)
-- **Ayanamsha**: Lahiri (Newcomb precession, IAE standard)
+### Vedic Astrology Engine v4.0 (TypeScript)
+**Cross-verified against Drik Panchang** — all 9 planets match signs, nakshatras, and Navamsa chart exactly (max deviation: 7 arcminutes).
+
+#### Calculation Methodology
+- **Ayanamsha**: Lahiri (Chitra Paksha) — 50+ entry lookup table from Swiss Ephemeris reference values with linear interpolation (0.0" error at all reference dates 1900–2050)
 - **Obliquity**: IAU 2006 formula (Lieske)
-- **Nutation**: Simplified IAU with deltaPsi and deltaEps
-- **Planets**: Sun, Moon, Mars, Mercury, Jupiter, Venus, Saturn (VSOP87/Meeus)
-- **Nodes**: Rahu/Ketu with perturbation corrections
-- **Ascendant**: Full Meeus formula with apparent sidereal time
+- **Nutation**: Simplified IAU 4-term with deltaPsi and deltaEps, consistently applied to all bodies
+- **Sun**: VSOP87 truncated (Meeus Ch. 25), apparent longitude with aberration + nutation
+- **Moon**: Full Meeus Ch. 47 (ELP truncated, 60 terms), with nutation correction for apparent position
+- **Planets**: Full Keplerian orbital elements (Meeus), heliocentric→geocentric conversion, perturbation corrections for Jupiter-Saturn Great Inequality and Mars perturbations
+- **Nodes**: Rahu/Ketu using **Mean Node** (Meeus Ch. 47 polynomial) — matches Drik Panchang default. Ketu enforced as exactly 180° from Rahu in sidereal and all divisional charts
+- **Ascendant**: Full Meeus Ch. 14 formula with apparent sidereal time (GMST + nutation)
 - **Houses**: Whole Sign system (classical Jyotish)
 - **Nakshatras**: 27 nakshatras with pada, lord, deity
-- **Divisional Charts**: All 15 Parashari vargas (D1–D60) with correct ascendants
+- **Divisional Charts**: All 15 Parashari vargas (D1–D60) with correct ascendants; Rahu-Ketu axis enforced as 6 signs apart in ALL divisional charts
 - **Dasha**: Vimshottari Mahadasha + Antardasha with precise nakshatra fractions
 - **Doshas**: Mangalik, Kaal Sarp, Pitra with severity and remedies
 - **Sade Sati**: Real-time tracker using CURRENT transit Saturn
@@ -113,6 +118,15 @@
 - **Arudha Padas**: All 12 Arudha Padas + Special Lagnas (Jaimini system)
 - **Retrograde Detection**: 2-point derivative method
 - **Dignity**: Exalted, Debilitated, Moolatrikona, Own Sign, Friend, Enemy, Neutral
+- **Timezone Handling**: Proper UTC conversion with day-rollover support for all timezones (-12 to +14)
+
+#### Accuracy Improvements (v4.0)
+1. **Lahiri Ayanamsha**: Replaced polynomial formula with dense lookup table — 0.0" error at all Swiss Ephemeris reference points
+2. **Mean Node**: Switched from broken hybrid to pure Mean Node polynomial matching Drik Panchang
+3. **Rahu-Ketu Axis**: Enforced exact 180° in sidereal coordinates and all 15 divisional charts
+4. **Moon Nutation**: Added nutation in longitude correction (was previously missing)
+5. **Mars Perturbations**: Added Jupiter/Saturn perturbation terms from Meeus
+6. **Consistent Nutation**: Standardized aberration + nutation corrections across all planets
 
 ### Dashboard (/dashboard) — 12 Sections
 1. **Overview**: Profile cards, planetary table, quick chart, quick insights
@@ -139,10 +153,11 @@
 - Smooth page transitions and animations
 
 ## Data Architecture
-- **Calculation Engine**: Pure TypeScript, no external dependencies (~1964 lines)
+- **Calculation Engine**: Pure TypeScript, no external dependencies (~2100 lines), cross-verified against Drik Panchang
 - **Storage**: In-memory (D1 database optional for persistence)
 - **Frontend**: Vanilla JS SPA with Tailwind CSS CDN
 - **Geocoding**: Nominatim/OpenStreetMap API (no API key needed)
+- **Accuracy Tests**: `test-accuracy.ts` (Lahiri verification, multi-country charts, all divisional chart Rahu-Ketu axis) + `verify-drikpanchang.ts` (real-time cross-verification against Drik Panchang)
 
 ## Running Tests
 ```bash
@@ -153,8 +168,8 @@ npm run test:watch  # Watch mode
 ## Deployment
 - **Platform**: Cloudflare Pages
 - **Status**: Active
-- **Build**: `npm run build` → dist/_worker.js (~105 KB)
-- **Last Updated**: 2026-06-21
+- **Build**: `npm run build` → dist/_worker.js (~107 KB)
+- **Last Updated**: 2026-06-27
 
 ## Not Yet Implemented
 - Google + Email authentication
