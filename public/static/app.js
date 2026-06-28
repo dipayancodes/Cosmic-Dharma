@@ -13,6 +13,25 @@ let currentDashTab = 'overview';
 let chartStyle = 'north';
 let currentDivisional = 'd1';
 let selectedPlanet = null;
+
+// === Planet Status Indicator Helpers ===
+// Builds superscript indicator string for a planet:
+// ^ = combust, * = retrograde, ↑ = exalted, ↓ = debilitated
+function getPlanetIndicators(p, mode) {
+  // mode: 'svg' for Unicode superscript in SVG, 'html' for <sup> tags
+  let indicators = [];
+  if (p.combust) indicators.push('^');
+  if (p.retrograde && !['Rahu','Ketu'].includes(p.name)) indicators.push('*');
+  if (p.dignity === 'Exalted') indicators.push('↑');
+  if (p.dignity === 'Debilitated') indicators.push('↓');
+  if (indicators.length === 0) return '';
+  const str = indicators.join('');
+  if (mode === 'svg') {
+    return str; // Plain text appended in SVG
+  }
+  // HTML mode: colored superscript
+  return '<sup style="font-size:7px;vertical-align:super;letter-spacing:1px;color:#c4b5fd">' + str + '</sup>';
+}
 let sidebarOpen = false;
 let darkMode = true;
 let collapsedSections = {};
@@ -628,7 +647,7 @@ function renderOverview() {
             <tbody>
               ${c.planets.map(p => `
                 <tr class="border-b border-purple-500/5 hover:bg-purple-500/5 transition-colors cursor-pointer" onclick="window.__selectPlanet('${p.name}')">
-                  <td class="py-3 px-3"><span class="planet-badge ${p.retrograde && p.name !== 'Rahu' && p.name !== 'Ketu' ? 'retro' : ''} ${p.dignity==='Exalted'?'exalted':''} ${p.dignity==='Debilitated'?'debilitated':''}"><span style="color:${PLANET_COLORS[p.name]}" class="font-bold">${PLANET_ABBR[p.name]}</span> ${p.retrograde && !['Rahu','Ketu'].includes(p.name) ? '<span class="text-red-400 text-xs">(R)</span>' : ''}</span></td>
+                  <td class="py-3 px-3"><span class="planet-badge ${p.retrograde && p.name !== 'Rahu' && p.name !== 'Ketu' ? 'retro' : ''} ${p.dignity==='Exalted'?'exalted':''} ${p.dignity==='Debilitated'?'debilitated':''} ${p.combust?'combust':''}"><span style="color:${PLANET_COLORS[p.name]}" class="font-bold">${PLANET_ABBR[p.name]}</span>${getPlanetIndicators(p, 'html')}</span></td>
                   <td class="py-3 px-3 text-white/70">${p.signIndex + 1} - ${p.sign}</td>
                   <td class="py-3 px-3 font-mono text-white/60">${p.degreeInSign.toFixed(2)}\u00b0</td>
                   <td class="py-3 px-3 text-white/50 hidden sm:table-cell">${p.nakshatra} (P${p.nakshatraPada})</td>
@@ -757,7 +776,8 @@ function renderPlanetDetail(p, divContext) {
         ['Nakshatra', `${p.nakshatra} (Pada ${p.nakshatraPada})`],
         ['D1 House', `H${p.house}`],
         ['Dignity (D1)', p.dignity],
-        ['Retrograde', p.retrograde ? 'Yes \u211E' : 'No'],
+        ['Retrograde', p.retrograde ? 'Yes ℞' : 'No'],
+        ['Combust', p.combust ? 'Yes ☀️' : 'No'],
         ['Navamsa (D9)', p.navamsaSign],
         ['Dashamsa (D10)', p.dashamsaSign],
       ] : [
@@ -769,10 +789,11 @@ function renderPlanetDetail(p, divContext) {
         ['Nakshatra Deity', p.nakshatraDeity],
         ['House', `${p.house}`],
         ['Dignity', p.dignity],
-        ['Retrograde', p.retrograde ? 'Yes \u211E' : 'No'],
+        ['Retrograde', p.retrograde ? 'Yes ℞' : 'No'],
+        ['Combust', p.combust ? 'Yes ☀️' : 'No'],
         ['Navamsa (D9)', p.navamsaSign],
         ['Dashamsa (D10)', p.dashamsaSign],
-      ]).map(([label, val]) => `<div class="flex justify-between"><span class="text-white/40">${label}</span><span class="${label.includes('Dignity') ? (p.dignity === 'Exalted' ? 'text-green-400' : p.dignity === 'Debilitated' ? 'text-red-400' : 'text-white/70') : label === 'Retrograde' ? (p.retrograde ? 'text-red-400' : 'text-green-400') : 'text-white/70'} ${label.includes('Longitude') || label.includes('Degree') ? 'font-mono' : ''}">${val}</span></div>`).join('')}
+      ]).map(([label, val]) => `<div class="flex justify-between"><span class="text-white/40">${label}</span><span class="${label.includes('Dignity') ? (p.dignity === 'Exalted' ? 'text-green-400' : p.dignity === 'Debilitated' ? 'text-red-400' : 'text-white/70') : label === 'Retrograde' ? (p.retrograde ? 'text-red-400' : 'text-green-400') : label === 'Combust' ? (p.combust ? 'text-amber-400' : 'text-green-400') : 'text-white/70'} ${label.includes('Longitude') || label.includes('Degree') ? 'font-mono' : ''}">${val}</span></div>`).join('')}
     </div>
   </div>`;
 }
@@ -909,8 +930,8 @@ function renderNorthChart(planets, ascSignIdx) {
       const yPos = startY + idx * lineH;
       const color = PLANET_COLORS[p.name] || '#ccc';
       const abbr = PLANET_ABBR[p.name] || p.name.substring(0, 3).toUpperCase();
-      const retMark = (p.retrograde && !['Rahu', 'Ketu'].includes(p.name)) ? '\u1D3F' : '';
-      svg += `<text x="${centroid.x}" y="${yPos}" text-anchor="middle" dominant-baseline="central" fill="${color}" font-size="${fontSize}" font-weight="700" class="planet-in-chart" data-planet="${p.name}" style="cursor:pointer" font-family="'Space Grotesk',sans-serif">${abbr}${retMark}</text>`;
+      const indicators = getPlanetIndicators(p, 'svg');
+      svg += `<text x="${centroid.x}" y="${yPos}" text-anchor="middle" dominant-baseline="central" fill="${color}" font-size="${fontSize}" font-weight="700" class="planet-in-chart" data-planet="${p.name}" style="cursor:pointer" font-family="'Space Grotesk',sans-serif">${abbr}<tspan font-size="${Math.max(fontSize - 3, 6)}" dy="-3">${indicators}</tspan><tspan dy="3"></tspan></text>`;
     });
   }
 
@@ -953,8 +974,8 @@ function renderSouthChart(planets, ascSignIdx) {
     html += `<div class="si-planets">`;
     signPlanets.forEach(p => {
       const abbr = PLANET_ABBR[p.name] || p.name.substring(0, 3).toUpperCase();
-      const retMark = (p.retrograde && !['Rahu','Ketu'].includes(p.name)) ? '<sup style="font-size:5px;color:#ef4444;vertical-align:super">R</sup>' : '';
-      html += `<span class="si-planet" style="color:${PLANET_COLORS[p.name]}" data-planet="${p.name}" title="${PLANET_ABBR[p.name]} ${p.degreeInSign.toFixed(1)}\u00b0 ${p.sign} | House ${p.house} | ${p.nakshatra}">${abbr}${retMark}</span>`;
+      const indicators = getPlanetIndicators(p, 'html');
+      html += `<span class="si-planet" style="color:${PLANET_COLORS[p.name]}" data-planet="${p.name}" title="${PLANET_ABBR[p.name]} ${p.degreeInSign.toFixed(1)}\u00b0 ${p.sign} | House ${p.house} | ${p.nakshatra}">${abbr}${indicators}</span>`;
     });
     html += `</div></div>`;
   }
@@ -1181,7 +1202,7 @@ function renderTransitTab() {
               <div class="w-10 h-10 rounded-xl flex items-center justify-center text-xs font-bold" style="background:${PLANET_COLORS[t.planet]}12;color:${PLANET_COLORS[t.planet]}">${PLANET_ABBR[t.planet]}</div>
               <div><div class="font-semibold text-sm">${PLANET_ABBR[t.planet]} - ${t.planet}</div><div class="text-xs text-white/40">${t.degree.toFixed(1)}\u00b0 ${t.sign} (${t.signIndex + 1})</div></div>
             </div>
-            ${t.retrograde && !['Rahu','Ketu'].includes(t.planet) ? '<span class="text-xs text-red-400 font-medium px-2 py-0.5 rounded bg-red-500/10">\u211E Retro</span>' : ''}
+            ${t.retrograde && !['Rahu','Ketu'].includes(t.planet) ? '<span class="text-xs text-red-400 font-medium px-2 py-0.5 rounded bg-red-500/10">* Retro</span>' : ''}
           </div>
           <p class="text-xs text-white/40 leading-relaxed">${t.effects}</p>
         </div>
@@ -1583,7 +1604,7 @@ function attachEvents() {
           }
         }
       }
-      showTooltip(e, `<strong>${PLANET_ABBR[p.name]} - ${p.name}</strong><br>${p.degreeInSign.toFixed(2)}\u00b0 ${p.sign} (${p.signIndex + 1})<br>${p.nakshatra} P${p.nakshatraPada}<br>House ${p.house} \u00b7 ${p.dignity}`);
+      showTooltip(e, `<strong>${PLANET_ABBR[p.name]} - ${p.name}</strong><br>${p.degreeInSign.toFixed(2)}° ${p.sign} (${p.signIndex + 1})<br>${p.nakshatra} P${p.nakshatraPada}<br>House ${p.house} · ${p.dignity}${p.combust ? ' · <span style="color:#fbbf24">Combust</span>' : ''}${p.retrograde && !['Rahu','Ketu'].includes(p.name) ? ' · <span style="color:#ef4444">Retro</span>' : ''}`);
     }
   });
   document.addEventListener('mouseout', (e) => {

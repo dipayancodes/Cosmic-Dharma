@@ -596,6 +596,46 @@ function calculateAscendant(jd: number, latitude: number, geoLongitude: number):
 }
 
 // ============================================================
+// COMBUSTION — Planet too close to Sun (Asta/Combust)
+// Standard combustion orbs from Surya Siddhanta / BPHS:
+// Moon: 12°, Mars: 17°, Mercury: 14° (12° retro), Jupiter: 11°,
+// Venus: 10° (8° retro), Saturn: 15°
+// Sun, Rahu, Ketu cannot be combust.
+// ============================================================
+function isCombust(planetName: string, planetLong: number, sunLong: number, retro: boolean): boolean {
+  if (['Sun', 'Rahu', 'Ketu'].includes(planetName)) return false;
+
+  // Combustion orbs in degrees (tropical longitude distance from Sun)
+  const COMBUST_ORBS: Record<string, number> = {
+    Moon: 12,
+    Mars: 17,
+    Mercury: 14,
+    Jupiter: 11,
+    Venus: 10,
+    Saturn: 15,
+  };
+  // Retrograde planets have tighter combustion orbs for Mercury and Venus
+  const COMBUST_ORBS_RETRO: Record<string, number> = {
+    Mercury: 12,
+    Venus: 8,
+  };
+
+  let orb = COMBUST_ORBS[planetName];
+  if (!orb) return false;
+
+  // Use tighter orb if retrograde (only Mercury and Venus differ)
+  if (retro && COMBUST_ORBS_RETRO[planetName]) {
+    orb = COMBUST_ORBS_RETRO[planetName];
+  }
+
+  // Angular distance on the ecliptic (shortest arc)
+  let diff = Math.abs(planetLong - sunLong);
+  if (diff > 180) diff = 360 - diff;
+
+  return diff <= orb;
+}
+
+// ============================================================
 // RETROGRADE — Check using 2-point derivative
 // ============================================================
 function isRetrograde(planet: string, jd: number): boolean {
@@ -1817,7 +1857,7 @@ export interface PlanetData {
   degreeInSign: number;
   nakshatra: string; nakshatraIndex: number; nakshatraPada: number;
   nakshatraLord: string; nakshatraDeity: string;
-  house: number; retrograde: boolean; dignity: string;
+  house: number; retrograde: boolean; combust: boolean; dignity: string;
   navamsaSign: string; navamsaSignIndex: number;
   dashamsaSign: string; dashamsaSignIndex: number;
   shashtiamsaSign: string; shashtiamsaSignIndex: number;
@@ -1932,9 +1972,12 @@ export function calculateBirthChart(
   const planets: PlanetData[] = [];
   const planetList = ['Sun','Moon','Mars','Mercury','Jupiter','Venus','Saturn'];
   
+  // Pre-calculate Sun's tropical longitude for combustion checks
+  const sunTropLong = getPlanetLongitude(jd, 'Sun');
+  
   for (let i = 0; i < planetList.length; i++) {
     const pName = planetList[i];
-    const tropLong = getPlanetLongitude(jd, pName);
+    const tropLong = pName === 'Sun' ? sunTropLong : getPlanetLongitude(jd, pName);
     const sidLong = toSidereal(tropLong, ayanamsha);
     const signIdx = getSignIndex(sidLong);
     const degInSign = getDegreeInSign(sidLong);
@@ -1954,6 +1997,7 @@ export function calculateBirthChart(
       nakshatraLord: NAKSHATRA_LORDS[nakIdx], nakshatraDeity: NAKSHATRA_DEITIES[nakIdx],
       house: getHouseNumber(sidLong, ascSignIdx),
       retrograde: retro,
+      combust: isCombust(pName, tropLong, sunTropLong, retro),
       dignity: getPlanetDignity(pName, signIdx, degInSign),
       navamsaSign: SIGNS[navSign], navamsaSignIndex: navSign,
       dashamsaSign: SIGNS[d10Sign], dashamsaSignIndex: d10Sign,
@@ -1985,7 +2029,7 @@ export function calculateBirthChart(
       nakshatraPada: getNakshatraPada(sidLong),
       nakshatraLord: NAKSHATRA_LORDS[nakIdx], nakshatraDeity: NAKSHATRA_DEITIES[nakIdx],
       house: getHouseNumber(sidLong, ascSignIdx),
-      retrograde: true, dignity: 'Neutral',
+      retrograde: true, combust: false, dignity: 'Neutral',
       navamsaSign: '', navamsaSignIndex: 0,
       dashamsaSign: '', dashamsaSignIndex: 0,
       shashtiamsaSign: '', shashtiamsaSignIndex: 0
